@@ -1,4 +1,4 @@
-# MCPTools
+# MCP
 
 A command-line interface for interacting with MCP (Model Context Protocol) servers using both stdio and HTTP transport.
 
@@ -8,7 +8,7 @@ A command-line interface for interacting with MCP (Model Context Protocol) serve
 
 ```bash
 brew tap f/mcptools
-brew install mcptools
+brew install mcp
 ```
 
 ### From Source
@@ -20,11 +20,11 @@ go install github.com/f/mcptools/cmd/mcptools@latest
 ## Usage
 
 ```
-MCPTools is a command line interface for interacting with MCP servers.
+MCP is a command line interface for interacting with MCP servers.
 It allows you to discover and call tools, list resources, and interact with MCP-compatible services.
 
 Usage:
-  mcptools [command]
+  mcp [command]
 
 Available Commands:
   call           Call a tool, resource, or prompt on the MCP server
@@ -36,7 +36,7 @@ Available Commands:
 
 Flags:
   -f, --format string   Output format (json, pretty) (default "pretty")
-  -h, --help            Help for mcptools
+  -h, --help            Help for mcp
   -H, --http            Use HTTP transport instead of stdio
   -p, --params string   JSON string of parameters to pass to the tool (default "{}")
   -s, --server string   MCP server URL (when using HTTP transport) (default "http://localhost:8080")
@@ -44,14 +44,14 @@ Flags:
 
 ## Transport Options
 
-MCPTools supports two transport methods for communicating with MCP servers:
+MCP supports two transport methods for communicating with MCP servers:
 
 ### Stdio Transport (Default)
 
 Uses stdin/stdout to communicate with an MCP server via JSON-RPC 2.0. This is useful for command-line tools that implement the MCP protocol.
 
 ```bash
-mcptools tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
 ### HTTP Transport
@@ -59,7 +59,7 @@ mcptools tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 Uses HTTP protocol to communicate with an MCP server. Use the `--http` flag for HTTP transport.
 
 ```bash
-mcptools --http tools --server "http://mcp.example.com:8080"
+mcp --http tools --server "http://mcp.example.com:8080"
 ```
 
 ## Commands
@@ -68,60 +68,60 @@ mcptools --http tools --server "http://mcp.example.com:8080"
 
 ```bash
 # Using stdio transport (default)
-mcptools tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 # Using HTTP transport
-mcptools --http tools
+mcp --http tools
 ```
 
 ### List Available Resources
 
 ```bash
 # Using stdio transport
-mcptools resources npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp resources npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 # Using HTTP transport
-mcptools --http resources
+mcp --http resources
 ```
 
 ### List Available Prompts
 
 ```bash
 # Using stdio transport
-mcptools prompts npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp prompts npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 # Using HTTP transport
-mcptools --http prompts
+mcp --http prompts
 ```
 
 ### Call a Tool
 
 ```bash
 # Using stdio transport
-mcptools call read_file --params '{"path": "/path/to/file"}' npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call read_file --params '{"path": "/path/to/file"}' npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 # Using HTTP transport
-mcptools --http call read_file --params '{"path": "/path/to/file"}'
+mcp --http call read_file --params '{"path": "/path/to/file"}'
 ```
 
 ### Call a Resource
 
 ```bash
 # Using stdio transport
-mcptools call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 # Using HTTP transport
-mcptools --http call resource:my-resource
+mcp --http call resource:my-resource
 ```
 
 ### Call a Prompt
 
 ```bash
 # Using stdio transport
-mcptools call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 # Using HTTP transport
-mcptools --http call prompt:my-prompt
+mcp --http call prompt:my-prompt
 ```
 
 ## Examples
@@ -129,19 +129,19 @@ mcptools --http call prompt:my-prompt
 List tools from a filesystem server:
 
 ```bash
-mcptools tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
 Call the read_file tool with JSON output:
 
 ```bash
-mcptools call read_file --params '{"path": "README.md"}' --format json npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call read_file --params '{"path": "README.md"}' --format json npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
 Using HTTP transport with a remote server:
 
 ```bash
-mcptools --http --server "http://mcp.example.com:8080" tools
+mcp --http --server "http://mcp.example.com:8080" tools
 ```
 
 ## License

@@ -1,4 +1,4 @@
-project_name: mcptools
+project_name: mcp
 
 before:
   hooks:
@@ -37,7 +37,7 @@ checksum:
   name_template: 'checksums.txt'
 
 brews:
-  - name: mcptools
+  - name: mcp
     homepage: "https://github.com/f/mcptools"
     description: "A CLI tool for interacting with MCP servers"
     license: "MIT"
@@ -49,9 +49,9 @@ brews:
       email: goreleaser@example.com
     folder: Formula
     install: |
-      bin.install "mcptools"
+      bin.install "mcp"
     test: |
-      system "#{bin}/mcptools", "version"
+      system "#{bin}/mcp", "version"
 
 changelog:
   sort: asc

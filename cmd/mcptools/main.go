@@ -29,9 +29,9 @@ func main() {
 	cobra.EnableCommandSorting = false
 	
 	var rootCmd = &cobra.Command{
-		Use:   "mcptools",
-		Short: "MCPTools is a command line interface for interacting with MCP servers",
-		Long: `MCPTools is a command line interface for interacting with MCP (Model Control Protocol) servers.
+		Use:   "mcp",
+		Short: "MCP is a command line interface for interacting with MCP servers",
+		Long: `MCP is a command line interface for interacting with Model Context Protocol (MCP) servers.
 It allows you to discover and call tools, list resources, and interact with MCP-compatible services.`,
 	}
 
@@ -46,7 +46,7 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 		Use:   "version",
 		Short: "Print the version information",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("MCPTools version %s (built at %s)\n", Version, BuildTime)
+			fmt.Printf("MCP version %s (built at %s)\n", Version, BuildTime)
 		},
 	}
 
@@ -54,17 +54,21 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 	var toolsCmd = &cobra.Command{
 		Use:                   "tools [command args...]",
 		Short:                 "List available tools on the MCP server",
-		DisableFlagParsing:    true,
+		DisableFlagParsing:    true,  // Important: Don't parse flags for this command
 		SilenceUsage:          true,
 		Run: func(cmd *cobra.Command, args []string) {
+			// Special handling for --help flag
 			if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 				cmd.Help()
 				return
 			}
 			
+			// For other flags like --format, --http, etc, we need to handle them manually
+			// since DisableFlagParsing is true
 			cmdArgs := args
 			parsedArgs := []string{}
 			
+			// Process global flags and remove them from args
 			i := 0
 			for i < len(cmdArgs) {
 				if cmdArgs[i] == "--format" || cmdArgs[i] == "-f" {
@@ -89,9 +93,10 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 				i++
 			}
 			
+			// Now parsedArgs contains only the command to execute
 			if !httpMode && len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
-				fmt.Fprintln(os.Stderr, "Example: mcptools tools npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code")
 				os.Exit(1)
 			}
 
@@ -122,17 +127,21 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 	var resourcesCmd = &cobra.Command{
 		Use:                   "resources [command args...]",
 		Short:                 "List available resources on the MCP server",
-		DisableFlagParsing:    true,
+		DisableFlagParsing:    true,  // Important: Don't parse flags for this command
 		SilenceUsage:          true,
 		Run: func(cmd *cobra.Command, args []string) {
+			// Special handling for --help flag
 			if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 				cmd.Help()
 				return
 			}
 			
+			// For other flags like --format, --http, etc, we need to handle them manually
+			// since DisableFlagParsing is true
 			cmdArgs := args
 			parsedArgs := []string{}
 			
+			// Process global flags and remove them from args
 			i := 0
 			for i < len(cmdArgs) {
 				if cmdArgs[i] == "--format" || cmdArgs[i] == "-f" {
@@ -159,7 +168,7 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 			
 			if !httpMode && len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
-				fmt.Fprintln(os.Stderr, "Example: mcptools resources npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp resources npx -y @modelcontextprotocol/server-filesystem ~/Code")
 				os.Exit(1)
 			}
 
@@ -190,17 +199,21 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 	var promptsCmd = &cobra.Command{
 		Use:                   "prompts [command args...]",
 		Short:                 "List available prompts on the MCP server",
-		DisableFlagParsing:    true,
+		DisableFlagParsing:    true,  // Important: Don't parse flags for this command
 		SilenceUsage:          true,
 		Run: func(cmd *cobra.Command, args []string) {
+			// Special handling for --help flag
 			if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 				cmd.Help()
 				return
 			}
 			
+			// For other flags like --format, --http, etc, we need to handle them manually
+			// since DisableFlagParsing is true
 			cmdArgs := args
 			parsedArgs := []string{}
 			
+			// Process global flags and remove them from args
 			i := 0
 			for i < len(cmdArgs) {
 				if cmdArgs[i] == "--format" || cmdArgs[i] == "-f" {
@@ -227,7 +240,7 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 			
 			if !httpMode && len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
-				fmt.Fprintln(os.Stderr, "Example: mcptools prompts npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~/Code")
 				os.Exit(1)
 			}
 
@@ -258,9 +271,10 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 	var callCmd = &cobra.Command{
 		Use:                   "call entity [command args...]",
 		Short:                 "Call a tool, resource, or prompt on the MCP server",
-		DisableFlagParsing:    true,
+		DisableFlagParsing:    true,  // Important: Don't parse flags for this command
 		SilenceUsage:          true,
 		Run: func(cmd *cobra.Command, args []string) {
+			// Special handling for --help flag
 			if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 				cmd.Help()
 				return
@@ -268,14 +282,16 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 			
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: entity name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcptools call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
 				os.Exit(1)
 			}
 			
+			// Process our flags manually since DisableFlagParsing is true
 			cmdArgs := args
 			parsedArgs := []string{}
 			entityName := ""
 			
+			// Process global flags and remove them from args
 			i := 0
 			entityExtracted := false
 			
@@ -303,19 +319,21 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 						continue
 					}
 				} else if !entityExtracted {
+					// The first non-flag argument is the entity name
 					entityName = cmdArgs[i]
 					entityExtracted = true
 					i++
 					continue
 				}
 				
+				// Any other arguments get passed to the command
 				parsedArgs = append(parsedArgs, cmdArgs[i])
 				i++
 			}
 			
 			if entityName == "" {
 				fmt.Fprintln(os.Stderr, "Error: entity name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcptools call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
 				os.Exit(1)
 			}
 
@@ -330,7 +348,7 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 			
 			if !httpMode && len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
-				fmt.Fprintln(os.Stderr, "Example: mcptools call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
 				os.Exit(1)
 			}
 
