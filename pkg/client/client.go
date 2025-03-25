@@ -6,78 +6,84 @@ import (
 	"github.com/f/mcptools/pkg/transport"
 )
 
-// Client represents an MCP client
+// Client provides an interface to interact with MCP servers.
+// It abstracts away the transport mechanism so callers don't need
+// to worry about the details of HTTP, stdio, etc.
 type Client struct {
-	Transport transport.Transport
+	transport transport.Transport
 }
 
-// New creates a new MCP client with HTTP transport
+// New creates a new MCP client that communicates with the server
+// at the given baseURL via HTTP.
 func New(baseURL string) *Client {
 	return &Client{
-		Transport: transport.NewHTTP(baseURL),
+		transport: transport.NewHTTP(baseURL),
 	}
 }
 
-// NewWithTransport creates a new MCP client with the given transport
+// NewWithTransport creates a new MCP client using the provided transport.
+// This allows callers to provide a custom transport implementation.
 func NewWithTransport(t transport.Transport) *Client {
 	return &Client{
-		Transport: t,
+		transport: t,
 	}
 }
 
-// NewStdio creates a new MCP client with Stdio transport
+// NewStdio creates a new MCP client that communicates with a command
+// via stdin/stdout using JSON-RPC.
 func NewStdio(command []string) *Client {
 	return &Client{
-		Transport: transport.NewStdio(command),
+		transport: transport.NewStdio(command),
 	}
 }
 
-// ListTools lists all available tools on the MCP server
-func (c *Client) ListTools() (map[string]interface{}, error) {
-	return c.Transport.Execute("tools/list", nil)
+// ListTools retrieves the list of available tools from the MCP server.
+func (c *Client) ListTools() (map[string]any, error) {
+	return c.transport.Execute("tools/list", nil)
 }
 
-// ListResources lists all available resources on the MCP server
-func (c *Client) ListResources() (map[string]interface{}, error) {
-	return c.Transport.Execute("resources/list", nil)
+// ListResources retrieves the list of available resources from the MCP server.
+func (c *Client) ListResources() (map[string]any, error) {
+	return c.transport.Execute("resources/list", nil)
 }
 
-// ListPrompts lists all available prompts on the MCP server
-func (c *Client) ListPrompts() (map[string]interface{}, error) {
-	return c.Transport.Execute("prompts/list", nil)
+// ListPrompts retrieves the list of available prompts from the MCP server.
+func (c *Client) ListPrompts() (map[string]any, error) {
+	return c.transport.Execute("prompts/list", nil)
 }
 
-// CallTool calls a specific tool on the MCP server
-func (c *Client) CallTool(toolName string, args map[string]interface{}) (map[string]interface{}, error) {
-	params := map[string]interface{}{
+// CallTool calls a specific tool on the MCP server with the given arguments.
+func (c *Client) CallTool(toolName string, args map[string]any) (map[string]any, error) {
+	params := map[string]any{
 		"name":      toolName,
 		"arguments": args,
 	}
-	return c.Transport.Execute("tools/call", params)
+	return c.transport.Execute("tools/call", params)
 }
 
-// GetPrompt gets a specific prompt from the MCP server
-func (c *Client) GetPrompt(promptName string) (map[string]interface{}, error) {
-	params := map[string]interface{}{
+// GetPrompt retrieves a specific prompt from the MCP server.
+func (c *Client) GetPrompt(promptName string) (map[string]any, error) {
+	params := map[string]any{
 		"name": promptName,
 	}
-	return c.Transport.Execute("prompts/get", params)
+	return c.transport.Execute("prompts/get", params)
 }
 
-// ReadResource reads a specific resource from the MCP server
-func (c *Client) ReadResource(uri string) (map[string]interface{}, error) {
-	params := map[string]interface{}{
+// ReadResource reads the content of a specific resource from the MCP server.
+func (c *Client) ReadResource(uri string) (map[string]any, error) {
+	params := map[string]any{
 		"uri": uri,
 	}
-	return c.Transport.Execute("resources/read", params)
+	return c.transport.Execute("resources/read", params)
 }
 
-// ParseCommandString parses a command string into a slice of command arguments
+// ParseCommandString splits a command string into separate arguments,
+// respecting spaces as argument separators.
+// Note: This is a simple implementation that doesn't handle quotes or escapes.
 func ParseCommandString(cmdStr string) []string {
 	if cmdStr == "" {
 		return nil
 	}
-	
-	// Simple split by space - in a real implementation, you'd handle quotes and escapes better
+
 	return strings.Fields(cmdStr)
-} 
+}

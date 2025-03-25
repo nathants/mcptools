@@ -1,4 +1,4 @@
-package formatter
+package jsonutils
 
 import (
 	"strings"
@@ -8,9 +8,10 @@ import (
 func TestFormat(t *testing.T) {
 	testCases := []struct {
 		name         string
-		data         interface{}
+		data         any
 		format       string
 		expectPretty bool
+		expectError  bool
 	}{
 		{
 			name:         "format json",
@@ -37,6 +38,18 @@ func TestFormat(t *testing.T) {
 			expectPretty: true,
 		},
 		{
+			name:         "format table",
+			data:         map[string]string{"key": "value"},
+			format:       "table",
+			expectPretty: true,
+		},
+		{
+			name:         "format t",
+			data:         map[string]string{"key": "value"},
+			format:       "t",
+			expectPretty: true,
+		},
+		{
 			name:         "format default",
 			data:         map[string]string{"key": "value"},
 			format:       "unknown",
@@ -47,6 +60,14 @@ func TestFormat(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			output, err := Format(tc.data, tc.format)
+
+			if tc.expectError {
+				if err == nil {
+					t.Fatalf("expected error but got none")
+				}
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -66,4 +87,28 @@ func TestFormat(t *testing.T) {
 			}
 		})
 	}
-} 
+}
+
+func TestParseFormat(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected OutputFormat
+	}{
+		{"json", FormatJSON},
+		{"J", FormatJSON},
+		{"pretty", FormatPretty},
+		{"P", FormatPretty},
+		{"table", FormatTable},
+		{"T", FormatTable},
+		{"unknown", FormatTable}, // Default is table
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			result := ParseFormat(tc.input)
+			if result != tc.expected {
+				t.Errorf("ParseFormat(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
