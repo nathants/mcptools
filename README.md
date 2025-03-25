@@ -175,6 +175,10 @@ read_file   Reads a file from the filesystem
 mcp > call read_file --params '{"path": "README.md"}'
 ...content of README.md...
 
+# Direct tool calling is supported
+mcp > read_file {"path": "README.md"}
+...content of README.md...
+
 mcp > /h
 MCP Shell Commands:
   tools                      List available tools

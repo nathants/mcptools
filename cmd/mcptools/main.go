@@ -1,14 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/formatter"
+	"github.com/peterh/liner"
 	"github.com/spf13/cobra"
 )
 
@@ -458,17 +459,53 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 			fmt.Println("mcp > connected to MCP server over stdio")
 			fmt.Println("mcp > Type '/h' for help or '/q' to quit")
 			
-			scanner := bufio.NewScanner(os.Stdin)
+			// Create a new line state with history capability
+			line := liner.NewLiner()
+			defer line.Close()
+			
+			// Load command history from ~/.mcp_history if it exists
+			historyFile := filepath.Join(os.Getenv("HOME"), ".mcp_history")
+			if f, err := os.Open(historyFile); err == nil {
+				line.ReadHistory(f)
+				f.Close()
+			}
+			
+			// Save history on exit
+			defer func() {
+				if f, err := os.Create(historyFile); err == nil {
+					line.WriteHistory(f)
+					f.Close()
+				}
+			}()
+			
+			// Set completion handler for commands
+			line.SetCompleter(func(line string) (c []string) {
+				commands := []string{"tools", "resources", "prompts", "call", "format", "help", "exit", "/h", "/q", "/help", "/quit"}
+				for _, cmd := range commands {
+					if strings.HasPrefix(cmd, line) {
+						c = append(c, cmd)
+					}
+				}
+				return
+			})
+			
 			for {
-				fmt.Print("mcp > ")
-				if !scanner.Scan() {
+				input, err := line.Prompt("mcp > ")
+				if err != nil {
+					if err == liner.ErrPromptAborted {
+						fmt.Println("Exiting MCP shell")
+						break
+					}
+					fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
 					break
 				}
 				
-				input := scanner.Text()
 				if input == "" {
 					continue
 				}
+				
+				// Add the command to history
+				line.AppendHistory(input)
 				
 				// Handle special commands
 				if input == "/q" || input == "/quit" || input == "exit" {
@@ -612,12 +649,72 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 					}
 					
 				default:
-					fmt.Printf("Unknown command: %s\nType '/h' for help\n", command)
+					// Try to interpret the command as a tool call
+					entityName := command
+					entityType := "tool" // Default to tool
+					
+					// Check if entityName contains a type prefix
+					parts := strings.SplitN(entityName, ":", 2)
+					if len(parts) == 2 {
+						entityType = parts[0]
+						entityName = parts[1]
+					}
+					
+					// Parse parameters if provided
+					params := map[string]interface{}{}
+					
+					// Check if the first argument is a JSON object
+					if len(commandArgs) > 0 {
+						firstArg := commandArgs[0]
+						if strings.HasPrefix(firstArg, "{") && strings.HasSuffix(firstArg, "}") {
+							if err := json.Unmarshal([]byte(firstArg), &params); err != nil {
+								fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", err)
+								continue
+							}
+						} else {
+							// Process parameters with --params or -p flag
+							for i := 0; i < len(commandArgs); i++ {
+								if commandArgs[i] == "--params" || commandArgs[i] == "-p" {
+									if i+1 < len(commandArgs) {
+										if err := json.Unmarshal([]byte(commandArgs[i+1]), &params); err != nil {
+											fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", err)
+											continue
+										}
+										break
+									}
+								}
+							}
+						}
+					}
+					
+					var resp map[string]interface{}
+					var err error
+					
+					switch entityType {
+					case "tool":
+						resp, err = mcpClient.CallTool(entityName, params)
+					case "resource":
+						resp, err = mcpClient.ReadResource(entityName)
+					case "prompt":
+						resp, err = mcpClient.GetPrompt(entityName)
+					default:
+						fmt.Printf("Unknown command: %s\nType '/h' for help\n", command)
+						continue
+					}
+					
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+						continue
+					}
+					
+					output, err := formatter.Format(resp, format)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+						continue
+					}
+					
+					fmt.Println(output)
 				}
-			}
-			
-			if err := scanner.Err(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
 			}
 		},
 	}
@@ -644,6 +741,10 @@ func printShellHelp() {
 	fmt.Println("  prompts                    List available prompts")
 	fmt.Println("  call <entity> [--params '{...}']  Call a tool, resource, or prompt")
 	fmt.Println("  format [json|pretty|table] Get or set output format")
+	fmt.Println("Direct Tool Calling:")
+	fmt.Println("  <tool_name> {\"param\": \"value\"}  Call a tool directly with JSON parameters")
+	fmt.Println("  resource:<name>            Read a resource directly")
+	fmt.Println("  prompt:<name>              Get a prompt directly")
 	fmt.Println("Special Commands:")
 	fmt.Println("  /h, /help                  Show this help")
 	fmt.Println("  /q, /quit, exit            Exit the shell")
