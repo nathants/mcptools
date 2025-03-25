@@ -1,4 +1,4 @@
-# MCP
+# MCP Tools
 
 A command-line interface for interacting with MCP (Model Context Protocol) servers using both stdio and HTTP transport.
 
