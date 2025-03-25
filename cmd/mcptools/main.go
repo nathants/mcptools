@@ -37,7 +37,7 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVarP(&serverURL, "server", "s", "http://localhost:8080", "MCP server URL (when using HTTP transport)")
-	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "pretty", "Output format (json, pretty)")
+	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "table", "Output format (table, json, pretty)")
 	rootCmd.PersistentFlags().BoolVarP(&httpMode, "http", "H", false, "Use HTTP transport instead of stdio")
 	rootCmd.PersistentFlags().StringVarP(&paramsString, "params", "p", "{}", "JSON string of parameters to pass to the tool (for call command)")
 

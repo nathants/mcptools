@@ -35,7 +35,7 @@ Available Commands:
   version        Print the version information
 
 Flags:
-  -f, --format string   Output format (json, pretty) (default "pretty")
+  -f, --format string   Output format (table, json, pretty) (default "table")
   -h, --help            Help for mcp
   -H, --http            Use HTTP transport instead of stdio
   -p, --params string   JSON string of parameters to pass to the tool (default "{}")
@@ -60,6 +60,34 @@ Uses HTTP protocol to communicate with an MCP server. Use the `--http` flag for 
 
 ```bash
 mcp --http tools --server "http://mcp.example.com:8080"
+```
+
+## Output Formats
+
+MCP supports three output formats:
+
+### Table Format (Default)
+
+Displays the output in a table-like view for better readability.
+
+```bash
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+```
+
+### JSON Format
+
+Displays the output as compact JSON.
+
+```bash
+mcp tools --format json npx -y @modelcontextprotocol/server-filesystem ~/Code
+```
+
+### Pretty Format
+
+Displays the output as indented JSON.
+
+```bash
+mcp tools --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
 ## Commands
@@ -132,10 +160,10 @@ List tools from a filesystem server:
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
-Call the read_file tool with JSON output:
+Call the read_file tool with pretty JSON output:
 
 ```bash
-mcp call read_file --params '{"path": "README.md"}' --format json npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call read_file --params '{"path": "README.md"}' --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
 Using HTTP transport with a remote server:
