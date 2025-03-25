@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -399,15 +400,251 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 		},
 	}
 
+	// Shell command
+	var shellCmd = &cobra.Command{
+		Use:                "shell [command args...]",
+		Short:              "Start an interactive shell for MCP commands",
+		DisableFlagParsing: true,
+		SilenceUsage:       true,
+		Run: func(cmd *cobra.Command, args []string) {
+			// Special handling for --help flag
+			if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+				cmd.Help()
+				return
+			}
+			
+			// For other flags like --format, we need to handle them manually
+			cmdArgs := args
+			parsedArgs := []string{}
+			
+			// Process global flags and remove them from args
+			i := 0
+			for i < len(cmdArgs) {
+				if cmdArgs[i] == "--format" || cmdArgs[i] == "-f" {
+					if i+1 < len(cmdArgs) {
+						format = cmdArgs[i+1]
+						i += 2
+						continue
+					}
+				} else if cmdArgs[i] == "--server" || cmdArgs[i] == "-s" {
+					if i+1 < len(cmdArgs) {
+						serverURL = cmdArgs[i+1]
+						i += 2
+						continue
+					}
+				}
+				
+				parsedArgs = append(parsedArgs, cmdArgs[i])
+				i++
+			}
+			
+			if len(parsedArgs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using the shell")
+				fmt.Fprintln(os.Stderr, "Example: mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				os.Exit(1)
+			}
+
+			// Create the stdio client that will be reused for all commands
+			mcpClient := client.NewStdio(parsedArgs)
+			
+			// Try to connect and get server info
+			_, err := mcpClient.ListTools()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error connecting to MCP server: %v\n", err)
+				os.Exit(1)
+			}
+			
+			// Start the interactive shell
+			fmt.Println("mcp > connected to MCP server over stdio")
+			fmt.Println("mcp > Type '/h' for help or '/q' to quit")
+			
+			scanner := bufio.NewScanner(os.Stdin)
+			for {
+				fmt.Print("mcp > ")
+				if !scanner.Scan() {
+					break
+				}
+				
+				input := scanner.Text()
+				if input == "" {
+					continue
+				}
+				
+				// Handle special commands
+				if input == "/q" || input == "/quit" || input == "exit" {
+					fmt.Println("Exiting MCP shell")
+					break
+				}
+				
+				if input == "/h" || input == "/help" || input == "help" {
+					printShellHelp()
+					continue
+				}
+				
+				// Parse the input as a command
+				parts := strings.Fields(input)
+				if len(parts) == 0 {
+					continue
+				}
+				
+				command := parts[0]
+				commandArgs := parts[1:]
+				
+				// Process the command
+				switch command {
+				case "tools":
+					resp, err := mcpClient.ListTools()
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+						continue
+					}
+					
+					output, err := formatter.Format(resp, format)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+						continue
+					}
+					
+					fmt.Println(output)
+					
+				case "resources":
+					resp, err := mcpClient.ListResources()
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+						continue
+					}
+					
+					output, err := formatter.Format(resp, format)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+						continue
+					}
+					
+					fmt.Println(output)
+					
+				case "prompts":
+					resp, err := mcpClient.ListPrompts()
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+						continue
+					}
+					
+					output, err := formatter.Format(resp, format)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+						continue
+					}
+					
+					fmt.Println(output)
+					
+				case "call":
+					if len(commandArgs) < 1 {
+						fmt.Println("Usage: call <entity> [--params '{...}']")
+						continue
+					}
+					
+					entityName := commandArgs[0]
+					entityType := "tool" // Default to tool
+					
+					// Check if entityName contains a type prefix
+					parts := strings.SplitN(entityName, ":", 2)
+					if len(parts) == 2 {
+						entityType = parts[0]
+						entityName = parts[1]
+					}
+					
+					// Parse parameters if provided
+					params := map[string]interface{}{}
+					for i := 1; i < len(commandArgs); i++ {
+						if commandArgs[i] == "--params" || commandArgs[i] == "-p" {
+							if i+1 < len(commandArgs) {
+								if err := json.Unmarshal([]byte(commandArgs[i+1]), &params); err != nil {
+									fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", err)
+									continue
+								}
+								break
+							}
+						}
+					}
+					
+					var resp map[string]interface{}
+					var err error
+					
+					switch entityType {
+					case "tool":
+						resp, err = mcpClient.CallTool(entityName, params)
+					case "resource":
+						resp, err = mcpClient.ReadResource(entityName)
+					case "prompt":
+						resp, err = mcpClient.GetPrompt(entityName)
+					default:
+						fmt.Fprintf(os.Stderr, "Error: unsupported entity type: %s\n", entityType)
+						continue
+					}
+					
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+						continue
+					}
+					
+					output, err := formatter.Format(resp, format)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+						continue
+					}
+					
+					fmt.Println(output)
+					
+				case "format":
+					if len(commandArgs) < 1 {
+						fmt.Printf("Current format: %s\n", format)
+						continue
+					}
+					
+					newFormat := commandArgs[0]
+					if newFormat == "json" || newFormat == "j" ||
+					   newFormat == "pretty" || newFormat == "p" ||
+					   newFormat == "table" || newFormat == "t" {
+						format = newFormat
+						fmt.Printf("Format set to: %s\n", format)
+					} else {
+						fmt.Println("Invalid format. Use: table, json, or pretty")
+					}
+					
+				default:
+					fmt.Printf("Unknown command: %s\nType '/h' for help\n", command)
+				}
+			}
+			
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+			}
+		},
+	}
+
 	// Add commands to root
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(toolsCmd)
 	rootCmd.AddCommand(resourcesCmd)
 	rootCmd.AddCommand(promptsCmd)
 	rootCmd.AddCommand(callCmd)
+	rootCmd.AddCommand(shellCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// Helper function to print shell help
+func printShellHelp() {
+	fmt.Println("MCP Shell Commands:")
+	fmt.Println("  tools                      List available tools")
+	fmt.Println("  resources                  List available resources")
+	fmt.Println("  prompts                    List available prompts")
+	fmt.Println("  call <entity> [--params '{...}']  Call a tool, resource, or prompt")
+	fmt.Println("  format [json|pretty|table] Get or set output format")
+	fmt.Println("Special Commands:")
+	fmt.Println("  /h, /help                  Show this help")
+	fmt.Println("  /q, /quit, exit            Exit the shell")
 } 

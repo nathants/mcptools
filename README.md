@@ -31,6 +31,7 @@ Available Commands:
   help           Help about any command
   prompts        List available prompts on the MCP server
   resources      List available resources on the MCP server
+  shell          Start an interactive shell for MCP commands
   tools          List available tools on the MCP server
   version        Print the version information
 
@@ -152,6 +153,43 @@ mcp call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~/Code
 mcp --http call prompt:my-prompt
 ```
 
+### Interactive Shell Mode
+
+Start an interactive shell for executing multiple MCP commands:
+
+```bash
+mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
+```
+
+This opens an interactive shell where you can run MCP commands:
+
+```
+mcp > connected to MCP server over stdio
+mcp > Type '/h' for help or '/q' to quit
+mcp > tools
+NAME        DESCRIPTION
+----        -----------
+read_file   Reads a file from the filesystem
+...
+
+mcp > call read_file --params '{"path": "README.md"}'
+...content of README.md...
+
+mcp > /h
+MCP Shell Commands:
+  tools                      List available tools
+  resources                  List available resources
+  prompts                    List available prompts
+  call <entity> [--params '{...}']  Call a tool, resource, or prompt
+  format [json|pretty|table] Get or set output format
+Special Commands:
+  /h, /help                  Show this help
+  /q, /quit, exit            Exit the shell
+
+mcp > /q
+Exiting MCP shell
+```
+
 ## Examples
 
 List tools from a filesystem server:
@@ -170,6 +208,12 @@ Using HTTP transport with a remote server:
 
 ```bash
 mcp --http --server "http://mcp.example.com:8080" tools
+```
+
+Using the interactive shell mode:
+
+```bash
+mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
 ## License
