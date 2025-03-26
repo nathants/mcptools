@@ -1,3 +1,6 @@
+/*
+Package jsonutils implements JSON utility functions.
+*/
 package jsonutils
 
 import (
@@ -10,19 +13,17 @@ import (
 	"text/tabwriter"
 )
 
-// OutputFormat represents the available output format options
+// OutputFormat represents the available output format options.
 type OutputFormat string
 
+// constants.
 const (
-	// FormatJSON represents compact JSON output
-	FormatJSON OutputFormat = "json"
-	// FormatPretty represents pretty-printed JSON output
+	FormatJSON   OutputFormat = "json"
 	FormatPretty OutputFormat = "pretty"
-	// FormatTable represents tabular output
-	FormatTable OutputFormat = "table"
+	FormatTable  OutputFormat = "table"
 )
 
-// ParseFormat converts a string to an OutputFormat
+// ParseFormat converts a string to an OutputFormat.
 func ParseFormat(format string) OutputFormat {
 	switch strings.ToLower(format) {
 	case "json", "j":
@@ -73,50 +74,40 @@ func formatJSON(data any, pretty bool) (string, error) {
 // formatTable formats the data as a tabular view based on its structure.
 // It tries to detect common MCP response structures and format them appropriately.
 func formatTable(data any) (string, error) {
-	// Handle special cases based on common MCP server responses
 	val := reflect.ValueOf(data)
 
-	// For nil values
 	if !val.IsValid() {
 		return "No data available", nil
 	}
 
-	// If it's not a map, just return the JSON representation
 	if val.Kind() != reflect.Map {
 		return formatJSON(data, true)
 	}
 
-	// Try to detect common MCP response structures
 	mapVal, ok := val.Interface().(map[string]any)
 	if !ok {
 		return formatJSON(data, true)
 	}
 
-	// Handle tool list
-	if tools, ok := mapVal["tools"]; ok {
+	if tools, ok1 := mapVal["tools"]; ok1 {
 		return formatToolsList(tools)
 	}
 
-	// Handle resource list
-	if resources, ok := mapVal["resources"]; ok {
+	if resources, ok2 := mapVal["resources"]; ok2 {
 		return formatResourcesList(resources)
 	}
 
-	// Handle prompt list
-	if prompts, ok := mapVal["prompts"]; ok {
+	if prompts, ok3 := mapVal["prompts"]; ok3 {
 		return formatPromptsList(prompts)
 	}
 
-	// Handle tool call with content
-	if content, ok := mapVal["content"]; ok {
+	if content, ok4 := mapVal["content"]; ok4 {
 		return formatContent(content)
 	}
 
-	// Generic table for other map structures
 	return formatGenericMap(mapVal)
 }
 
-// formatToolsList formats a list of tools as a table with name and description columns.
 func formatToolsList(tools any) (string, error) {
 	toolsSlice, ok := tools.([]any)
 	if !ok {
@@ -134,15 +125,14 @@ func formatToolsList(tools any) (string, error) {
 	fmt.Fprintln(w, "----\t-----------")
 
 	for _, t := range toolsSlice {
-		tool, ok := t.(map[string]any)
-		if !ok {
+		tool, ok1 := t.(map[string]any)
+		if !ok1 {
 			continue
 		}
 
 		name, _ := tool["name"].(string)
 		desc, _ := tool["description"].(string)
 
-		// Truncate long descriptions
 		if len(desc) > 70 {
 			desc = desc[:67] + "..."
 		}
@@ -150,11 +140,10 @@ func formatToolsList(tools any) (string, error) {
 		fmt.Fprintf(w, "%s\t%s\n", name, desc)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 	return buf.String(), nil
 }
 
-// formatResourcesList formats a list of resources as a table with name, type, and URI columns.
 func formatResourcesList(resources any) (string, error) {
 	resourcesSlice, ok := resources.([]any)
 	if !ok {
@@ -172,8 +161,8 @@ func formatResourcesList(resources any) (string, error) {
 	fmt.Fprintln(w, "----\t----\t---")
 
 	for _, r := range resourcesSlice {
-		resource, ok := r.(map[string]any)
-		if !ok {
+		resource, ok1 := r.(map[string]any)
+		if !ok1 {
 			continue
 		}
 
@@ -184,11 +173,10 @@ func formatResourcesList(resources any) (string, error) {
 		fmt.Fprintf(w, "%s\t%s\t%s\n", name, resType, uri)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 	return buf.String(), nil
 }
 
-// formatPromptsList formats a list of prompts as a table with name and description columns.
 func formatPromptsList(prompts any) (string, error) {
 	promptsSlice, ok := prompts.([]any)
 	if !ok {
@@ -206,15 +194,14 @@ func formatPromptsList(prompts any) (string, error) {
 	fmt.Fprintln(w, "----\t-----------")
 
 	for _, p := range promptsSlice {
-		prompt, ok := p.(map[string]any)
-		if !ok {
+		prompt, ok1 := p.(map[string]any)
+		if !ok1 {
 			continue
 		}
 
 		name, _ := prompt["name"].(string)
 		desc, _ := prompt["description"].(string)
 
-		// Truncate long descriptions
 		if len(desc) > 70 {
 			desc = desc[:67] + "..."
 		}
@@ -222,12 +209,10 @@ func formatPromptsList(prompts any) (string, error) {
 		fmt.Fprintf(w, "%s\t%s\n", name, desc)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 	return buf.String(), nil
 }
 
-// formatContent formats content (usually tool call results) in a readable way.
-// It handles different content types like text and images.
 func formatContent(content any) (string, error) {
 	contentSlice, ok := content.([]any)
 	if !ok {
@@ -237,8 +222,8 @@ func formatContent(content any) (string, error) {
 	var buf strings.Builder
 
 	for _, c := range contentSlice {
-		contentItem, ok := c.(map[string]any)
-		if !ok {
+		contentItem, ok1 := c.(map[string]any)
+		if !ok1 {
 			continue
 		}
 
@@ -258,8 +243,6 @@ func formatContent(content any) (string, error) {
 	return buf.String(), nil
 }
 
-// formatGenericMap formats a generic map as a table with keys and values columns.
-// Keys are sorted alphabetically for consistent output.
 func formatGenericMap(data map[string]any) (string, error) {
 	if len(data) == 0 {
 		return "No data available", nil
@@ -271,7 +254,6 @@ func formatGenericMap(data map[string]any) (string, error) {
 	fmt.Fprintln(w, "KEY\tVALUE")
 	fmt.Fprintln(w, "---\t-----")
 
-	// Sort keys for consistent output
 	keys := make([]string, 0, len(data))
 	for k := range data {
 		keys = append(keys, k)
@@ -288,13 +270,11 @@ func formatGenericMap(data map[string]any) (string, error) {
 		case nil:
 			valueStr = "<nil>"
 		default:
-			// For complex types, use JSON
 			jsonBytes, err := json.Marshal(val)
 			if err != nil {
 				valueStr = fmt.Sprintf("<%T>", val)
 			} else {
 				valueStr = string(jsonBytes)
-				// Truncate long values
 				if len(valueStr) > 50 {
 					valueStr = valueStr[:47] + "..."
 				}
@@ -304,6 +284,6 @@ func formatGenericMap(data map[string]any) (string, error) {
 		fmt.Fprintf(w, "%s\t%s\n", k, valueStr)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 	return buf.String(), nil
 }

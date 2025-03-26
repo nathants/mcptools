@@ -1,3 +1,6 @@
+/*
+Package client implements mcp client functionality.
+*/
 package client
 
 import (

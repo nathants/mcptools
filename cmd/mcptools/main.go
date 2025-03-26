@@ -1,7 +1,11 @@
+/*
+Package main implements mcp functionality.
+*/
 package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,13 +17,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Version information set during build
+// version information placeholders.
 var (
 	Version   = "dev"
 	BuildTime = "unknown"
 )
 
-// Flag constants
+// flags.
 const (
 	flagFormat       = "--format"
 	flagFormatShort  = "-f"
@@ -36,7 +40,6 @@ const (
 	entityTypeRes    = "resource"
 )
 
-// Global flags
 var (
 	serverURL    string
 	formatOption string
@@ -44,7 +47,7 @@ var (
 	paramsString string
 )
 
-// Common errors
+// sentinel errors.
 var (
 	errCommandRequired = fmt.Errorf("command to execute is required when using stdio transport")
 )
@@ -69,7 +72,6 @@ func main() {
 	}
 }
 
-// newRootCmd creates the root command for the MCP CLI
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mcp",
@@ -78,16 +80,16 @@ func newRootCmd() *cobra.Command {
 It allows you to discover and call tools, list resources, and interact with MCP-compatible services.`,
 	}
 
-	// Global flags
-	cmd.PersistentFlags().StringVarP(&serverURL, "server", "s", "http://localhost:8080", "MCP server URL (when using HTTP transport)")
+	cmd.PersistentFlags().
+		StringVarP(&serverURL, "server", "s", "http://localhost:8080", "MCP server URL (when using HTTP transport)")
 	cmd.PersistentFlags().StringVarP(&formatOption, "format", "f", "table", "Output format (table, json, pretty)")
 	cmd.PersistentFlags().BoolVarP(&httpMode, "http", "H", false, "Use HTTP transport instead of stdio")
-	cmd.PersistentFlags().StringVarP(&paramsString, "params", "p", "{}", "JSON string of parameters to pass to the tool (for call command)")
+	cmd.PersistentFlags().
+		StringVarP(&paramsString, "params", "p", "{}", "JSON string of parameters to pass to the tool (for call command)")
 
 	return cmd
 }
 
-// newVersionCmd creates the version command
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
@@ -98,7 +100,6 @@ func newVersionCmd() *cobra.Command {
 	}
 }
 
-// createClient creates a client based on the global flags and arguments
 func createClient(args []string) (*client.Client, error) {
 	if !httpMode && len(args) == 0 {
 		return nil, errCommandRequired
@@ -111,8 +112,6 @@ func createClient(args []string) (*client.Client, error) {
 	return client.NewStdio(args), nil
 }
 
-// processFlags extracts global flags from the given arguments
-// Returns the remaining non-flag arguments
 func processFlags(args []string) []string {
 	parsedArgs := []string{}
 
@@ -137,7 +136,6 @@ func processFlags(args []string) []string {
 	return parsedArgs
 }
 
-// formatAndPrintResponse formats and prints the response from an MCP method
 func formatAndPrintResponse(resp map[string]any, err error) error {
 	if err != nil {
 		return fmt.Errorf("error: %w", err)
@@ -152,7 +150,6 @@ func formatAndPrintResponse(resp map[string]any, err error) error {
 	return nil
 }
 
-// newToolsCmd creates the tools command
 func newToolsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "tools [command args...]",
@@ -183,7 +180,6 @@ func newToolsCmd() *cobra.Command {
 	}
 }
 
-// newResourcesCmd creates the resources command
 func newResourcesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "resources [command args...]",
@@ -214,7 +210,6 @@ func newResourcesCmd() *cobra.Command {
 	}
 }
 
-// newPromptsCmd creates the prompts command
 func newPromptsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "prompts [command args...]",
@@ -245,7 +240,6 @@ func newPromptsCmd() *cobra.Command {
 	}
 }
 
-// newCallCmd creates the call command
 func newCallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "call entity [command args...]",
@@ -260,7 +254,10 @@ func newCallCmd() *cobra.Command {
 
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: entity name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -297,7 +294,10 @@ func newCallCmd() *cobra.Command {
 
 			if entityName == "" {
 				fmt.Fprintln(os.Stderr, "Error: entity name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -311,7 +311,10 @@ func newCallCmd() *cobra.Command {
 
 			if !httpMode && len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
-				fmt.Fprintln(os.Stderr, "Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -352,7 +355,6 @@ func newCallCmd() *cobra.Command {
 	}
 }
 
-// newGetPromptCmd creates the get prompt command
 func newGetPromptCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "get-prompt prompt [command args...]",
@@ -367,7 +369,10 @@ func newGetPromptCmd() *cobra.Command {
 
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: prompt name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -404,7 +409,10 @@ func newGetPromptCmd() *cobra.Command {
 
 			if promptName == "" {
 				fmt.Fprintln(os.Stderr, "Error: prompt name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -431,7 +439,6 @@ func newGetPromptCmd() *cobra.Command {
 	}
 }
 
-// newReadResourceCmd creates the read resource command
 func newReadResourceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "read-resource resource [command args...]",
@@ -446,7 +453,10 @@ func newReadResourceCmd() *cobra.Command {
 
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: resource name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -480,7 +490,10 @@ func newReadResourceCmd() *cobra.Command {
 
 			if resourceName == "" {
 				fmt.Fprintln(os.Stderr, "Error: resource name is required")
-				fmt.Fprintln(os.Stderr, "Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(
+					os.Stderr,
+					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~/Code",
+				)
 				os.Exit(1)
 			}
 
@@ -507,8 +520,7 @@ func newReadResourceCmd() *cobra.Command {
 	}
 }
 
-// newShellCmd creates the shell command
-func newShellCmd() *cobra.Command {
+func newShellCmd() *cobra.Command { //nolint:gocyclo
 	return &cobra.Command{
 		Use:                "shell [command args...]",
 		Short:              "Start an interactive shell for MCP commands",
@@ -556,23 +568,35 @@ func newShellCmd() *cobra.Command {
 			fmt.Println("mcp > Type '/h' for help or '/q' to quit")
 
 			line := liner.NewLiner()
-			defer line.Close()
+			defer func() { _ = line.Close() }()
 
 			historyFile := filepath.Join(os.Getenv("HOME"), ".mcp_history")
-			if f, err := os.Open(historyFile); err == nil {
+			if f, err := os.Open(filepath.Clean(historyFile)); err == nil {
 				_, _ = line.ReadHistory(f)
-				f.Close()
+				_ = f.Close()
 			}
 
 			defer func() {
 				if f, err := os.Create(historyFile); err == nil {
 					_, _ = line.WriteHistory(f)
-					f.Close()
+					_ = f.Close()
 				}
 			}()
 
 			line.SetCompleter(func(line string) (c []string) {
-				commands := []string{"tools", "resources", "prompts", "call", "format", "help", "exit", "/h", "/q", "/help", "/quit"}
+				commands := []string{
+					"tools",
+					"resources",
+					"prompts",
+					"call",
+					"format",
+					"help",
+					"exit",
+					"/h",
+					"/q",
+					"/help",
+					"/quit",
+				}
 				for _, cmd := range commands {
 					if strings.HasPrefix(cmd, line) {
 						c = append(c, cmd)
@@ -584,7 +608,7 @@ func newShellCmd() *cobra.Command {
 			for {
 				input, err := line.Prompt("mcp > ")
 				if err != nil {
-					if err == liner.ErrPromptAborted {
+					if errors.Is(err, liner.ErrPromptAborted) {
 						fmt.Println("Exiting MCP shell")
 						break
 					}
@@ -616,47 +640,56 @@ func newShellCmd() *cobra.Command {
 				command := parts[0]
 				commandArgs := parts[1:]
 
+				var resp map[string]any
+				var respErr error
+
 				switch command {
 				case "tools":
-					resp, listErr := mcpClient.ListTools()
-					if listErr != nil {
-						fmt.Fprintf(os.Stderr, "Error: %v\n", listErr)
+					resp, respErr = mcpClient.ListTools()
+					if respErr != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", respErr)
+
 						continue
 					}
 
 					output, formatErr := jsonutils.Format(resp, formatOption)
 					if formatErr != nil {
 						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", formatErr)
+
 						continue
 					}
 
 					fmt.Println(output)
 
 				case "resources":
-					resp, listErr := mcpClient.ListResources()
-					if listErr != nil {
-						fmt.Fprintf(os.Stderr, "Error: %v\n", listErr)
+					resp, respErr = mcpClient.ListResources()
+					if respErr != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", respErr)
+
 						continue
 					}
 
 					output, formatErr := jsonutils.Format(resp, formatOption)
 					if formatErr != nil {
 						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", formatErr)
+
 						continue
 					}
 
 					fmt.Println(output)
 
 				case "prompts":
-					resp, listErr := mcpClient.ListPrompts()
-					if listErr != nil {
-						fmt.Fprintf(os.Stderr, "Error: %v\n", listErr)
+					resp, respErr = mcpClient.ListPrompts()
+					if respErr != nil {
+						fmt.Fprintf(os.Stderr, "Error: %v\n", respErr)
+
 						continue
 					}
 
 					output, formatErr := jsonutils.Format(resp, formatOption)
 					if formatErr != nil {
 						fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", formatErr)
+
 						continue
 					}
 
@@ -665,24 +698,26 @@ func newShellCmd() *cobra.Command {
 				case "call":
 					if len(commandArgs) < 1 {
 						fmt.Println("Usage: call <entity> [--params '{...}']")
+
 						continue
 					}
 
 					entityName := commandArgs[0]
 					entityType := entityTypeTool
 
-					parts := strings.SplitN(entityName, ":", 2)
+					parts = strings.SplitN(entityName, ":", 2)
 					if len(parts) == 2 {
 						entityType = parts[0]
 						entityName = parts[1]
 					}
 
 					params := map[string]any{}
-					for i := 1; i < len(commandArgs); i++ {
-						if commandArgs[i] == flagParams || commandArgs[i] == flagParamsShort {
-							if i+1 < len(commandArgs) {
-								if jsonErr := json.Unmarshal([]byte(commandArgs[i+1]), &params); jsonErr != nil {
+					for ii := 1; ii < len(commandArgs); ii++ {
+						if commandArgs[ii] == flagParams || commandArgs[i] == flagParamsShort {
+							if ii+1 < len(commandArgs) {
+								if jsonErr := json.Unmarshal([]byte(commandArgs[ii+1]), &params); jsonErr != nil {
 									fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", jsonErr)
+
 									continue
 								}
 								break
@@ -690,7 +725,6 @@ func newShellCmd() *cobra.Command {
 						}
 					}
 
-					var resp map[string]any
 					var execErr error
 
 					switch entityType {
@@ -738,7 +772,7 @@ func newShellCmd() *cobra.Command {
 					entityName := command
 					entityType := entityTypeTool
 
-					parts := strings.SplitN(entityName, ":", 2)
+					parts = strings.SplitN(entityName, ":", 2)
 					if len(parts) == 2 {
 						entityType = parts[0]
 						entityName = parts[1]
@@ -754,10 +788,10 @@ func newShellCmd() *cobra.Command {
 								continue
 							}
 						} else {
-							for i := 0; i < len(commandArgs); i++ {
-								if commandArgs[i] == flagParams || commandArgs[i] == flagParamsShort {
-									if i+1 < len(commandArgs) {
-										if jsonErr := json.Unmarshal([]byte(commandArgs[i+1]), &params); jsonErr != nil {
+							for iii := 0; iii < len(commandArgs); iii++ {
+								if commandArgs[iii] == flagParams || commandArgs[iii] == flagParamsShort {
+									if iii+1 < len(commandArgs) {
+										if jsonErr := json.Unmarshal([]byte(commandArgs[iii+1]), &params); jsonErr != nil {
 											fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", jsonErr)
 											continue
 										}
@@ -768,7 +802,6 @@ func newShellCmd() *cobra.Command {
 						}
 					}
 
-					var resp map[string]any
 					var execErr error
 
 					switch entityType {

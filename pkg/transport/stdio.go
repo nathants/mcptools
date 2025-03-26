@@ -80,7 +80,7 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 	if _, writeErr := stdin.Write(requestJSON); writeErr != nil {
 		return nil, fmt.Errorf("error writing to stdin: %w", writeErr)
 	}
-	stdin.Close()
+	_ = stdin.Close()
 
 	if t.debug {
 		fmt.Fprintf(os.Stderr, "DEBUG: Wrote request to stdin\n")
