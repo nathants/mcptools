@@ -1,9 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -e
+set -o pipefail
+set -o errexit
+set -o nounset
 
 check_go() {
   if ! command -v go &> /dev/null; then
     printf "Go is not installed on your system.\n"
-    read -p "Would you like to install Go now? (y/n): " choice
+    read -p -r "Would you like to install Go now? (y/n): " choice
     
     case "$choice" in
       y|Y)

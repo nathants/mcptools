@@ -25,8 +25,8 @@ setup: \
 
 check-go:
 	@echo "$(BLUE)Checking Go installation and version...$(NC)"
-	chmod +x ./scripts/check_go.sh
-	./scripts/check_go.sh
+	chmod +x ./scripts/check_go.bash
+	./scripts/check_go.bash
 
 build:
 	@echo "$(YELLOW)Building $(BINARY_NAME)...$(NC)"

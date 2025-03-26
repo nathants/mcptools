@@ -1,90 +1,50 @@
+version: "2"
 run:
-  timeout: 5m
+  concurrency: 4
   modules-download-mode: readonly
-  allow-parallel-runners: true
-  go: '1.24'
-
-output:
-  format: colored-line-number
-  sort-results: true
-
-linters-settings:
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-        disabled: false
-        arguments:
-          - checkPrivateReceivers
-          - sayRepetitiveInsteadOfStutters
-      - name: unexported-return
-        severity: warning
-        disabled: false
-      - name: unused-parameter
-        severity: warning
-        disabled: false
-  govet:
-    check-shadowing: true
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 3
-  misspell:
-    locale: US
-  goimports:
-    local-prefixes: github.com/f/mcptools
-  gofumpt:
-    extra-rules: true
-  nolintlint:
-    allow-unused: false
-    require-explanation: true
-    require-specific: true
 
 linters:
-  disable-all: true
   enable:
-    - bodyclose
-    - dogsled
-    - dupl
-    - errcheck
-    - exportloopref
+    - errorlint
     - goconst
     - gocritic
     - gocyclo
+    - godot
+    - godox
+    - gomoddirectives
+    - gosec
+    - makezero
+    - nilerr
+    - revive
+    - unparam
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintln
+        - fmt.Fprintf
+    govet:
+      enable-all: true
+      settings:
+        shadow:
+          strict: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
     - gofmt
     - gofumpt
     - goimports
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - misspell
-    - nakedret
-    - noctx
-    - nolintlint
-    - revive
-    - staticcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unused
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - gosec
-        - gomnd
-    - path: pkg/jsonutils
-      linters:
-        - dupl
-    - path: cmd/mcptools/main.go
-      linters:
-        - gocyclo
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  fix: false 
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

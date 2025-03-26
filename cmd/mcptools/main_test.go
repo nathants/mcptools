@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	"github.com/f/mcptools/pkg/transport"
-	"github.com/spf13/cobra"
 )
 
-// MockTransport implements the Transport interface for testing
+const entityTypeValue = "tool"
+
 type MockTransport struct {
 	Responses map[string]map[string]interface{}
 }
@@ -93,53 +93,45 @@ func (t *MockTransport) Execute(method string, params interface{}) (map[string]i
 	return map[string]interface{}{}, fmt.Errorf("unknown method: %s", method)
 }
 
-// Helper function to create a root command with a mock transport
-func setupTestCommand() (*cobra.Command, *bytes.Buffer) {
-	// Setup output buffer
-	outBuf := &bytes.Buffer{}
+// func setupTestCommand() (*cobra.Command, *bytes.Buffer) {
+// 	outBuf := &bytes.Buffer{}
+//
+// 	rootCmd := &cobra.Command{
+// 		Use:   "mcp",
+// 		Short: "MCP CLI",
+// 	}
+//
+// 	shellCmd := &cobra.Command{
+// 		Use:   "shell",
+// 		Short: "Interactive shell",
+// 		Run: func(cmd *cobra.Command, args []string) {
+// 			mockTransport := NewMockTransport()
+//
+// 			shell := &Shell{
+// 				Transport: mockTransport,
+// 				Format:    "table",
+// 				Reader: strings.NewReader(
+// 					"tools\ncall test_tool --params '{\"foo\":\"bar\"}'\ntest_tool {\"foo\":\"bar\"}\nresource:test_resource\nprompt:test_prompt\n/q\n",
+// 				),
+// 				Writer: outBuf,
+// 			}
+//
+// 			shell.Run()
+// 		},
+// 	}
+//
+// 	rootCmd.AddCommand(shellCmd)
+//
+// 	return rootCmd, outBuf
+// }
 
-	// Create root command
-	rootCmd := &cobra.Command{
-		Use:   "mcp",
-		Short: "MCP CLI",
-	}
-
-	// Create shell command
-	shellCmd := &cobra.Command{
-		Use:   "shell",
-		Short: "Interactive shell",
-		Run: func(cmd *cobra.Command, args []string) {
-			// Create mock transport
-			mockTransport := NewMockTransport()
-
-			// Create shell instance
-			shell := &Shell{
-				Transport: mockTransport,
-				Format:    "table",
-				Reader:    strings.NewReader("tools\ncall test_tool --params '{\"foo\":\"bar\"}'\ntest_tool {\"foo\":\"bar\"}\nresource:test_resource\nprompt:test_prompt\n/q\n"),
-				Writer:    outBuf,
-			}
-
-			// Run shell
-			shell.Run()
-		},
-	}
-
-	rootCmd.AddCommand(shellCmd)
-
-	// Return command and output buffer
-	return rootCmd, outBuf
-}
-
-// Shell represents a test shell instance
 type Shell struct {
 	Transport transport.Transport
-	Format    string
 	Reader    io.Reader
 	Writer    io.Writer
+	Format    string
 }
 
-// Run executes the shell with predefined inputs
 func (s *Shell) Run() {
 	scanner := bufio.NewScanner(s.Reader)
 
@@ -179,9 +171,9 @@ func (s *Shell) Run() {
 			}
 
 			entityName := args[0]
-			entityType := "tool"
+			entityType := entityTypeValue
 
-			parts := strings.SplitN(entityName, ":", 2)
+			parts = strings.SplitN(entityName, ":", 2)
 			if len(parts) == 2 {
 				entityType = parts[0]
 				entityName = parts[1]
@@ -219,11 +211,10 @@ func (s *Shell) Run() {
 			fmt.Fprintln(s.Writer, "Call result:", resp)
 
 		default:
-			// Try to interpret as a direct tool call
 			entityName := command
-			entityType := "tool"
+			entityType := entityTypeValue
 
-			parts := strings.SplitN(entityName, ":", 2)
+			parts = strings.SplitN(entityName, ":", 2)
 			if len(parts) == 2 {
 				entityType = parts[0]
 				entityName = parts[1]
@@ -273,7 +264,6 @@ func (s *Shell) Run() {
 	}
 }
 
-// TestDirectToolCalling tests the direct tool calling functionality
 func TestDirectToolCalling(t *testing.T) {
 	testCases := []struct {
 		input          string
@@ -293,15 +283,12 @@ func TestDirectToolCalling(t *testing.T) {
 		},
 	}
 
-	// Create mock transport
 	mockTransport := NewMockTransport()
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			// Setup output capture
 			outBuf := &bytes.Buffer{}
 
-			// Create shell with input
 			shell := &Shell{
 				Transport: mockTransport,
 				Format:    "table",
@@ -309,10 +296,8 @@ func TestDirectToolCalling(t *testing.T) {
 				Writer:    outBuf,
 			}
 
-			// Run shell
 			shell.Run()
 
-			// Check output
 			if !strings.Contains(outBuf.String(), tc.expectedOutput) {
 				t.Errorf("Expected output to contain %q, got: %s", tc.expectedOutput, outBuf.String())
 			}
@@ -320,12 +305,9 @@ func TestDirectToolCalling(t *testing.T) {
 	}
 }
 
-// TestExecuteShell tests the shell command execution with various commands
 func TestExecuteShell(t *testing.T) {
-	// Create mock transport
 	mockTransport := NewMockTransport()
 
-	// Test inputs
 	inputs := []string{
 		"tools",
 		"resources",
@@ -337,7 +319,6 @@ func TestExecuteShell(t *testing.T) {
 		"/q",
 	}
 
-	// Expected outputs for each input
 	expectedOutputs := []string{
 		"A test tool",                        // tools command
 		"A test resource",                    // resources command
@@ -349,10 +330,8 @@ func TestExecuteShell(t *testing.T) {
 		"Exiting MCP shell",                  // quit command
 	}
 
-	// Setup output capture
 	outBuf := &bytes.Buffer{}
 
-	// Create shell with all inputs
 	shell := &Shell{
 		Transport: mockTransport,
 		Format:    "table",
@@ -360,10 +339,8 @@ func TestExecuteShell(t *testing.T) {
 		Writer:    outBuf,
 	}
 
-	// Run shell
 	shell.Run()
 
-	// Check all expected outputs
 	output := outBuf.String()
 	for _, expected := range expectedOutputs {
 		if !strings.Contains(output, expected) {

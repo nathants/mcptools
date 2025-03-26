@@ -1,3 +1,6 @@
+/*
+Package transport implements http transport functionality.
+*/
 package transport
 
 import (
@@ -12,8 +15,8 @@ import (
 
 // HTTP implements the Transport interface using HTTP calls.
 type HTTP struct {
-	baseURL    string
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewHTTP creates a new HTTP transport with the given base URL.
@@ -55,7 +58,7 @@ func (t *HTTP) Execute(method string, params any) (map[string]any, error) {
 		endpoint = fmt.Sprintf("%s/v1/tools/%s", t.baseURL, url.PathEscape(toolName))
 		httpMethod = http.MethodPost
 
-		if arguments, ok := toolParams["arguments"].(map[string]any); ok && len(arguments) > 0 {
+		if arguments, ok1 := toolParams["arguments"].(map[string]any); ok1 && len(arguments) > 0 {
 			jsonBody, err := json.Marshal(arguments)
 			if err != nil {
 				return nil, fmt.Errorf("error marshaling tool arguments: %w", err)
@@ -92,7 +95,7 @@ func (t *HTTP) Execute(method string, params any) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -100,8 +103,8 @@ func (t *HTTP) Execute(method string, params any) (map[string]any, error) {
 	}
 
 	var result map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error decoding JSON response: %w", err)
+	if errr := json.NewDecoder(resp.Body).Decode(&result); errr != nil {
+		return nil, fmt.Errorf("error decoding JSON response: %w", errr)
 	}
 
 	return result, nil
