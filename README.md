@@ -3,7 +3,7 @@
 [Read my Blog Post about MCP Tools](https://blog.fka.dev/blog/2025-03-26-introducing-mcp-tools-cli/)
 
 A command-line interface for interacting with MCP (Model Context Protocol)
-servers using both stdio and HTTP transport.
+servers using stdio transport.
 
 ## Overview
 
@@ -56,31 +56,20 @@ go install github.com/f/mcptools/cmd/mcptools@latest
     Flags:
       -f, --format string   Output format (table, json, pretty) (default "table")
       -h, --help            Help for mcp
-      -H, --http            Use HTTP transport instead of stdio
       -p, --params string   JSON string of parameters to pass to the tool (default "{}")
-      -s, --server string   MCP server URL (when using HTTP transport) (default "http://localhost:8080")
 
 
 ## Transport Options
 
-MCP supports two transport methods for communicating with MCP servers:
+MCP currently supports one transport method for communicating with MCP servers:
 
-### Stdio Transport (Default)
+### Stdio Transport
 
 Uses stdin/stdout to communicate with an MCP server via JSON-RPC 2.0. This is
 useful for command-line tools that implement the MCP protocol.
 
 ```bash
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
-```
-
-### HTTP Transport
-
-Uses HTTP protocol to communicate with an MCP server. Use the `--http` flag
-for HTTP transport.
-
-```bash
-mcp --http tools --server "http://mcp.example.com:8080"
 ```
 
 ## Output Formats
@@ -116,61 +105,37 @@ mcp tools --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
 ### List Available Tools
 
 ```bash
-# Using stdio transport (default)
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
-
-# Using HTTP transport
-mcp --http tools
 ```
 
 ### List Available Resources
 
 ```bash
-# Using stdio transport
 mcp resources npx -y @modelcontextprotocol/server-filesystem ~/Code
-
-# Using HTTP transport
-mcp --http resources
 ```
 
 ### List Available Prompts
 
 ```bash
-# Using stdio transport
 mcp prompts npx -y @modelcontextprotocol/server-filesystem ~/Code
-
-# Using HTTP transport
-mcp --http prompts
 ```
 
 ### Call a Tool
 
 ```bash
-# Using stdio transport
 mcp call read_file --params '{"path": "/path/to/file"}' npx -y @modelcontextprotocol/server-filesystem ~/Code
-
-# Using HTTP transport
-mcp --http call read_file --params '{"path": "/path/to/file"}'
 ```
 
 ### Call a Resource
 
 ```bash
-# Using stdio transport
 mcp call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~/Code
-
-# Using HTTP transport
-mcp --http call resource:my-resource
 ```
 
 ### Call a Prompt
 
 ```bash
-# Using stdio transport
 mcp call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~/Code
-
-# Using HTTP transport
-mcp --http call prompt:my-prompt
 ```
 
 ### Interactive Shell Mode
@@ -227,17 +192,18 @@ Call the read_file tool with pretty JSON output:
 mcp call read_file --params '{"path": "README.md"}' --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
 
-Using HTTP transport with a remote server:
-
-```bash
-mcp --http --server "http://mcp.example.com:8080" tools
-```
-
 Using the interactive shell mode:
 
 ```bash
 mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
+
+## Roadmap
+
+The following features are planned for future releases:
+
+- HTTP Transport: Add support for connecting to MCP servers over HTTP
+- Authentication: Support for secure authentication mechanisms
 
 ## License
 

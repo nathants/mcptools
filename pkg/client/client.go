@@ -16,14 +16,6 @@ type Client struct {
 	transport transport.Transport
 }
 
-// New creates a new MCP client that communicates with the server
-// at the given baseURL via HTTP.
-func New(baseURL string) *Client {
-	return &Client{
-		transport: transport.NewHTTP(baseURL),
-	}
-}
-
 // NewWithTransport creates a new MCP client using the provided transport.
 // This allows callers to provide a custom transport implementation.
 func NewWithTransport(t transport.Transport) *Client {

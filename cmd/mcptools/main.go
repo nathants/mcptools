@@ -27,10 +27,6 @@ var (
 const (
 	flagFormat       = "--format"
 	flagFormatShort  = "-f"
-	flagHTTP         = "--http"
-	flagHTTPShort    = "-H"
-	flagServer       = "--server"
-	flagServerShort  = "-s"
 	flagParams       = "--params"
 	flagParamsShort  = "-p"
 	flagHelp         = "--help"
@@ -41,9 +37,7 @@ const (
 )
 
 var (
-	serverURL    string
 	formatOption string
-	httpMode     bool
 	paramsString string
 )
 
@@ -80,10 +74,7 @@ func newRootCmd() *cobra.Command {
 It allows you to discover and call tools, list resources, and interact with MCP-compatible services.`,
 	}
 
-	cmd.PersistentFlags().
-		StringVarP(&serverURL, "server", "s", "http://localhost:8080", "MCP server URL (when using HTTP transport)")
 	cmd.PersistentFlags().StringVarP(&formatOption, "format", "f", "table", "Output format (table, json, pretty)")
-	cmd.PersistentFlags().BoolVarP(&httpMode, "http", "H", false, "Use HTTP transport instead of stdio")
 	cmd.PersistentFlags().
 		StringVarP(&paramsString, "params", "p", "{}", "JSON string of parameters to pass to the tool (for call command)")
 
@@ -101,12 +92,8 @@ func newVersionCmd() *cobra.Command {
 }
 
 func createClient(args []string) (*client.Client, error) {
-	if !httpMode && len(args) == 0 {
+	if len(args) == 0 {
 		return nil, errCommandRequired
-	}
-
-	if httpMode {
-		return client.New(serverURL), nil
 	}
 
 	return client.NewStdio(args), nil
@@ -120,12 +107,6 @@ func processFlags(args []string) []string {
 		switch {
 		case (args[i] == flagFormat || args[i] == flagFormatShort) && i+1 < len(args):
 			formatOption = args[i+1]
-			i += 2
-		case args[i] == flagHTTP || args[i] == flagHTTPShort:
-			httpMode = true
-			i++
-		case (args[i] == flagServer || args[i] == flagServerShort) && i+1 < len(args):
-			serverURL = args[i+1]
 			i += 2
 		default:
 			parsedArgs = append(parsedArgs, args[i])
@@ -273,12 +254,6 @@ func newCallCmd() *cobra.Command {
 				case (cmdArgs[i] == flagFormat || cmdArgs[i] == flagFormatShort) && i+1 < len(cmdArgs):
 					formatOption = cmdArgs[i+1]
 					i += 2
-				case cmdArgs[i] == flagHTTP || cmdArgs[i] == flagHTTPShort:
-					httpMode = true
-					i++
-				case (cmdArgs[i] == flagServer || cmdArgs[i] == flagServerShort) && i+1 < len(cmdArgs):
-					serverURL = cmdArgs[i+1]
-					i += 2
 				case (cmdArgs[i] == flagParams || cmdArgs[i] == flagParamsShort) && i+1 < len(cmdArgs):
 					paramsString = cmdArgs[i+1]
 					i += 2
@@ -309,7 +284,7 @@ func newCallCmd() *cobra.Command {
 				entityName = parts[1]
 			}
 
-			if !httpMode && len(parsedArgs) == 0 {
+			if len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
 				fmt.Fprintln(
 					os.Stderr,
@@ -387,12 +362,6 @@ func newGetPromptCmd() *cobra.Command {
 				switch {
 				case (cmdArgs[i] == flagFormat || cmdArgs[i] == flagFormatShort) && i+1 < len(cmdArgs):
 					formatOption = cmdArgs[i+1]
-					i += 2
-				case cmdArgs[i] == flagHTTP || cmdArgs[i] == flagHTTPShort:
-					httpMode = true
-					i++
-				case (cmdArgs[i] == flagServer || cmdArgs[i] == flagServerShort) && i+1 < len(cmdArgs):
-					serverURL = cmdArgs[i+1]
 					i += 2
 				case (cmdArgs[i] == flagParams || cmdArgs[i] == flagParamsShort) && i+1 < len(cmdArgs):
 					paramsString = cmdArgs[i+1]
@@ -472,11 +441,8 @@ func newReadResourceCmd() *cobra.Command {
 				case (cmdArgs[i] == flagFormat || cmdArgs[i] == flagFormatShort) && i+1 < len(cmdArgs):
 					formatOption = cmdArgs[i+1]
 					i += 2
-				case cmdArgs[i] == flagHTTP || cmdArgs[i] == flagHTTPShort:
-					httpMode = true
-					i++
-				case (cmdArgs[i] == flagServer || cmdArgs[i] == flagServerShort) && i+1 < len(cmdArgs):
-					serverURL = cmdArgs[i+1]
+				case (cmdArgs[i] == flagParams || cmdArgs[i] == flagParamsShort) && i+1 < len(cmdArgs):
+					paramsString = cmdArgs[i+1]
 					i += 2
 				case !resourceExtracted:
 					resourceName = cmdArgs[i]
@@ -540,9 +506,6 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 				switch {
 				case (cmdArgs[i] == flagFormat || cmdArgs[i] == flagFormatShort) && i+1 < len(cmdArgs):
 					formatOption = cmdArgs[i+1]
-					i += 2
-				case (cmdArgs[i] == flagServer || cmdArgs[i] == flagServerShort) && i+1 < len(cmdArgs):
-					serverURL = cmdArgs[i+1]
 					i += 2
 				default:
 					parsedArgs = append(parsedArgs, cmdArgs[i])
