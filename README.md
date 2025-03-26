@@ -2,6 +2,8 @@
 
 A command-line interface for interacting with MCP (Model Context Protocol) servers using both stdio and HTTP transport.
 
+![MCP Tools Screenshot](.github/resources/screenshot.png)
+
 ## Installation
 
 ### Using Homebrew
