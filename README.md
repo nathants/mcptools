@@ -1,5 +1,7 @@
 # MCP Tools
 
+[Read my Blog Post about MCP Tools](https://blog.fka.dev/blog/2025-03-26-introducing-mcp-tools-cli/)
+
 A command-line interface for interacting with MCP (Model Context Protocol) servers using both stdio and HTTP transport.
 
 ## Overview
