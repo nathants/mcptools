@@ -2,6 +2,16 @@
 
 A command-line interface for interacting with MCP (Model Context Protocol) servers using both stdio and HTTP transport.
 
+## Overview
+
+```bash
+mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
+```
+
+This will open a shell as following:
+
+![MCP Tools Screenshot](.github/resources/screenshot.png)
+
 ## Installation
 
 ### Using Homebrew
