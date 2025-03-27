@@ -4,6 +4,8 @@ Package client implements mcp client functionality.
 package client
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/f/mcptools/pkg/transport"
@@ -29,6 +31,19 @@ func NewWithTransport(t transport.Transport) *Client {
 func NewStdio(command []string) *Client {
 	return &Client{
 		transport: transport.NewStdio(command),
+	}
+}
+
+// NewHTTP creates a MCP client that communicates with a server via HTTP using JSON-RPC.
+func NewHTTP(address string) *Client {
+	transport, err := transport.NewHTTP(address)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating HTTP transport: %s\n", err)
+		os.Exit(1)
+	}
+
+	return &Client{
+		transport: transport,
 	}
 }
 

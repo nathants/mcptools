@@ -61,7 +61,7 @@ go install github.com/f/mcptools/cmd/mcptools@latest
 
 ## Transport Options
 
-MCP currently supports one transport method for communicating with MCP servers:
+MCP currently supports two transport method for communicating with MCP servers:
 
 ### Stdio Transport
 
@@ -71,6 +71,20 @@ useful for command-line tools that implement the MCP protocol.
 ```bash
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 ```
+
+### Http SSE Transport
+
+Uses HTTP and Server-Sent Events (SSE) to communicate with an MCP server via JSON-RPC 2.0.
+This is useful for connecting to remote server that implement the MCP protocol.
+
+```
+mcp tools http://127.0.0.1:3001
+
+# As an example, you can use the everything sample server
+# docker run -p 3001:3001 --rm -it tzolov/mcp-everything-server:v1
+```
+
+_Note:_ Currently HTTP SSE supports only MCP protocol version 2024-11-05.
 
 ## Output Formats
 
@@ -202,7 +216,6 @@ mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
 
 The following features are planned for future releases:
 
-- HTTP Transport: Add support for connecting to MCP servers over HTTP
 - Authentication: Support for secure authentication mechanisms
 
 ## License

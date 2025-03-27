@@ -96,6 +96,10 @@ func createClient(args []string) (*client.Client, error) {
 		return nil, errCommandRequired
 	}
 
+	if len(args) == 1 && (strings.HasPrefix(args[0], "http://") || strings.HasPrefix(args[0], "https://")) {
+		return client.NewHTTP(args[0]), nil
+	}
+
 	return client.NewStdio(args), nil
 }
 
@@ -519,7 +523,11 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			mcpClient := client.NewStdio(parsedArgs)
+			mcpClient, clientErr := createClient(parsedArgs)
+			if clientErr != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
+				os.Exit(1)
+			}
 
 			_, listErr := mcpClient.ListTools()
 			if listErr != nil {

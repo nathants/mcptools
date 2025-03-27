@@ -1,3 +1,4 @@
+// Package transport contains implementatations for different transport options for MCP.
 package transport
 
 import (
