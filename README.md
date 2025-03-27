@@ -1,4 +1,6 @@
-# MCP Tools
+<p align="center">
+  <img src="./.github/resources/logo.png" alt="MCP Tools" height="300">
+</p>
 
 [Read my Blog Post about MCP Tools](https://blog.fka.dev/blog/2025-03-26-introducing-mcp-tools-cli/)
 
@@ -8,7 +10,7 @@ servers using stdio transport.
 ## Overview
 
 ```bash
-mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp shell npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 This will open a shell as following:
@@ -73,7 +75,7 @@ Uses stdin/stdout to communicate with an MCP server via JSON-RPC 2.0. This is
 useful for command-line tools that implement the MCP protocol.
 
 ```bash
-mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Http SSE Transport
@@ -99,7 +101,7 @@ MCP supports three output formats:
 Displays the output in a table-like view for better readability.
 
 ```bash
-mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### JSON Format
@@ -107,7 +109,7 @@ mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
 Displays the output as compact JSON.
 
 ```bash
-mcp tools --format json npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools --format json npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Pretty Format
@@ -115,7 +117,7 @@ mcp tools --format json npx -y @modelcontextprotocol/server-filesystem ~/Code
 Displays the output as indented JSON.
 
 ```bash
-mcp tools --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools --format pretty npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ## Commands
@@ -123,37 +125,37 @@ mcp tools --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
 ### List Available Tools
 
 ```bash
-mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### List Available Resources
 
 ```bash
-mcp resources npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp resources npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### List Available Prompts
 
 ```bash
-mcp prompts npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp prompts npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Call a Tool
 
 ```bash
-mcp call read_file --params '{"path": "/path/to/file"}' npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call read_file --params '{"path": "/path/to/file"}' npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Call a Resource
 
 ```bash
-mcp call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Call a Prompt
 
 ```bash
-mcp call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Interactive Shell Mode
@@ -161,7 +163,7 @@ mcp call prompt:my-prompt npx -y @modelcontextprotocol/server-filesystem ~/Code
 Start an interactive shell for executing multiple MCP commands:
 
 ```bash
-mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp shell npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 This opens an interactive shell where you can run MCP commands:
@@ -201,19 +203,19 @@ This opens an interactive shell where you can run MCP commands:
 List tools from a filesystem server:
 
 ```bash
-mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 Call the read_file tool with pretty JSON output:
 
 ```bash
-mcp call read_file --params '{"path": "README.md"}' --format pretty npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp call read_file --params '{"path": "README.md"}' --format pretty npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 Using the interactive shell mode:
 
 ```bash
-mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code
+mcp shell npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ## Roadmap
