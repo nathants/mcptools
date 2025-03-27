@@ -1,17 +1,17 @@
 package jsonutils
 
 import (
+	"os"
 	"strings"
 	"testing"
-	"os"
 )
 
-// TestWrapText tests the text wrapping functionality
+// TestWrapText tests the text wrapping functionality.
 func TestWrapText(t *testing.T) {
 	testCases := []struct {
 		name     string
-		text     string
 		width    int
+		text     string
 		expected []string
 	}{
 		{
@@ -43,11 +43,11 @@ func TestWrapText(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := wrapText(tc.text, tc.width)
-			
+
 			if len(result) != len(tc.expected) {
 				t.Fatalf("Expected %d lines, got %d", len(tc.expected), len(result))
 			}
-			
+
 			for i, line := range result {
 				if line != tc.expected[i] {
 					t.Errorf("Line %d: expected '%s', got '%s'", i, tc.expected[i], line)
@@ -57,25 +57,27 @@ func TestWrapText(t *testing.T) {
 	}
 }
 
-// TestGetTermWidth tests the terminal width detection
+// TestGetTermWidth tests the terminal width detection.
 func TestGetTermWidth(t *testing.T) {
 	// Save original stdout and restore it after the test
 	origStdout := os.Stdout
 	defer func() { os.Stdout = origStdout }()
-	
+
 	// Non-terminal case should return default width
 	r, w, _ := os.Pipe()
 	os.Stdout = w
-	
+
 	width := getTermWidth()
-	
+
 	// Close pipe
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Errorf("Error closing pipe: %v", err)
+	}
 	os.Stdout = origStdout
-	
+
 	// Read and discard pipe content
 	_, _ = r.Read(make([]byte, 1024))
-	
+
 	// Should return default width for non-terminal
 	if width != 80 {
 		t.Errorf("Expected default width 80 for non-terminal, got %d", width)
@@ -190,14 +192,14 @@ func TestParseFormat(t *testing.T) {
 	}
 }
 
-// TestToolsListFormatting tests the table formatting for tools list
+// TestToolsListFormatting tests the table formatting for tools list.
 func TestToolsListFormatting(t *testing.T) {
-	tools := []map[string]any{
-		{
+	tools := []any{
+		map[string]any{
 			"name":        "tool1",
 			"description": "This is a short description",
 		},
-		{
+		map[string]any{
 			"name":        "tool2",
 			"description": "This is a longer description that should wrap across multiple lines in the table output when displayed to the user",
 		},

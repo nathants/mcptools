@@ -111,7 +111,7 @@ func formatTable(data any) (string, error) {
 	return formatGenericMap(mapVal)
 }
 
-// formatToolsList formats a list of tools as a table
+// formatToolsList formats a list of tools as a table.
 func formatToolsList(tools any) (string, error) {
 	toolsSlice, ok := tools.([]any)
 	if !ok {
@@ -129,9 +129,9 @@ func formatToolsList(tools any) (string, error) {
 	fmt.Fprintln(w, "----\t-----------")
 
 	termWidth := getTermWidth()
-	nameColWidth := 20        // Default name column width
+	nameColWidth := 20                           // Default name column width
 	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
-	
+
 	if descColWidth < 10 {
 		descColWidth = 40 // Minimum width if terminal is too narrow
 	}
@@ -147,20 +147,20 @@ func formatToolsList(tools any) (string, error) {
 
 		// Handle multiline description
 		lines := wrapText(desc, descColWidth)
-		
+
 		if len(lines) == 0 {
 			fmt.Fprintf(w, "%s\t\n", name)
 			continue
 		}
-		
+
 		// First line with name
 		fmt.Fprintf(w, "%s\t%s\n", name, lines[0])
-		
+
 		// Remaining lines with empty name column
 		for _, line := range lines[1:] {
 			fmt.Fprintf(w, "\t%s\n", line)
 		}
-		
+
 		// Add a blank line between entries
 		if len(lines) > 1 {
 			fmt.Fprintln(w, "\t")
@@ -171,7 +171,7 @@ func formatToolsList(tools any) (string, error) {
 	return buf.String(), nil
 }
 
-// getTermWidth returns the terminal width or a default value if detection fails
+// getTermWidth returns the terminal width or a default value if detection fails.
 func getTermWidth() int {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
@@ -180,42 +180,42 @@ func getTermWidth() int {
 	return width
 }
 
-// wrapText wraps text to fit within a specified width
+// wrapText wraps text to fit within a specified width.
 func wrapText(text string, width int) []string {
 	if text == "" {
 		return []string{}
 	}
-	
+
 	words := strings.Fields(text)
 	if len(words) == 0 {
 		return []string{}
 	}
-	
+
 	var lines []string
 	var currentLine string
-	
+
 	for _, word := range words {
-		// Check if adding this word would exceed the width
-		if len(currentLine)+len(word)+1 > width && len(currentLine) > 0 {
+		switch {
+		case len(currentLine) == 0:
+			currentLine = word
+		case len(currentLine)+len(word)+1 > width:
 			// Add current line to lines and start a new line
 			lines = append(lines, currentLine)
 			currentLine = word
-		} else if len(currentLine) == 0 {
-			currentLine = word
-		} else {
+		default:
 			currentLine += " " + word
 		}
 	}
-	
+
 	// Add the last line
 	if len(currentLine) > 0 {
 		lines = append(lines, currentLine)
 	}
-	
+
 	return lines
 }
 
-// formatResourcesList formats a list of resources as a table
+// formatResourcesList formats a list of resources as a table.
 func formatResourcesList(resources any) (string, error) {
 	resourcesSlice, ok := resources.([]any)
 	if !ok {
@@ -241,7 +241,7 @@ func formatResourcesList(resources any) (string, error) {
 		name, _ := resource["name"].(string)
 		resType, _ := resource["type"].(string)
 		uri, _ := resource["uri"].(string)
-		
+
 		// Use the entire URI instead of truncating
 		fmt.Fprintf(w, "%s\t%s\t%s\n", name, resType, uri)
 	}
@@ -250,7 +250,7 @@ func formatResourcesList(resources any) (string, error) {
 	return buf.String(), nil
 }
 
-// formatPromptsList formats a list of prompts as a table
+// formatPromptsList formats a list of prompts as a table.
 func formatPromptsList(prompts any) (string, error) {
 	promptsSlice, ok := prompts.([]any)
 	if !ok {
@@ -268,9 +268,9 @@ func formatPromptsList(prompts any) (string, error) {
 	fmt.Fprintln(w, "----\t-----------")
 
 	termWidth := getTermWidth()
-	nameColWidth := 20        // Default name column width
+	nameColWidth := 20                           // Default name column width
 	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
-	
+
 	if descColWidth < 10 {
 		descColWidth = 40 // Minimum width if terminal is too narrow
 	}
@@ -286,20 +286,20 @@ func formatPromptsList(prompts any) (string, error) {
 
 		// Handle multiline description
 		lines := wrapText(desc, descColWidth)
-		
+
 		if len(lines) == 0 {
 			fmt.Fprintf(w, "%s\t\n", name)
 			continue
 		}
-		
+
 		// First line with name
 		fmt.Fprintf(w, "%s\t%s\n", name, lines[0])
-		
+
 		// Remaining lines with empty name column
 		for _, line := range lines[1:] {
 			fmt.Fprintf(w, "\t%s\n", line)
 		}
-		
+
 		// Add a blank line between entries
 		if len(lines) > 1 {
 			fmt.Fprintln(w, "\t")
