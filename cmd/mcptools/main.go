@@ -831,6 +831,15 @@ func newMockCmd() *cobra.Command {
 		Long: `Create a mock MCP server with tools, prompts, and resources.
 This is useful for testing MCP clients without implementing a full server.
 
+The mock server implements the MCP protocol with:
+- Full initialization handshake (initialize method)
+- Support for notifications/initialized notification
+- Tool listing with standardized schema format
+- Tool calling with simple responses
+- Resource listing and reading with proper format
+- Prompt listing and retrieving with proper format
+- Standard error codes (-32601 for method not found)
+
 Available types:
 - tool <name> <description>
 - prompt <name> <description> <template>
@@ -839,10 +848,10 @@ Available types:
 Example: 
   mcp mock tool hello_world "when user says hello world, run this tool"
   mcp mock tool hello_world "A greeting tool" \
-           prompt welcome "A welcome prompt" "Hello {{name}}, welcome to the system!" \
-           resource docs:readme "Documentation" "# Mock MCP Server\nThis is a mock server"`,
+         prompt welcome "A welcome prompt" "Hello {{name}}, welcome to the system!" \
+         resource docs:readme "Documentation" "# Mock MCP Server\nThis is a mock server"`,
 		Args: cobra.MinimumNArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			tools := make(map[string]string)
 			prompts := make(map[string]map[string]string)
 			resources := make(map[string]map[string]string)
@@ -853,7 +862,7 @@ Example:
 				i++
 
 				switch entityType {
-				case "tool":
+				case entityTypeTool:
 					if i+1 >= len(args) {
 						fmt.Fprintln(os.Stderr, "Error: each tool must have both a name and description")
 						fmt.Fprintln(os.Stderr, "Example: mcp mock tool hello_world \"when user says hello world, run this tool\"")
@@ -866,7 +875,7 @@ Example:
 					fmt.Fprintf(os.Stderr, "Added tool: %s - %s\n", toolName, toolDescription)
 					i += 2
 
-				case "prompt":
+				case entityTypePrompt:
 					if i+2 >= len(args) {
 						fmt.Fprintln(os.Stderr, "Error: each prompt must have a name, description, and template")
 						fmt.Fprintln(os.Stderr, "Example: mcp mock prompt welcome \"Welcome message\" \"Hello {{name}}!\"")
@@ -885,7 +894,7 @@ Example:
 					fmt.Fprintf(os.Stderr, "Added prompt: %s - %s\n", promptName, promptDescription)
 					i += 3
 
-				case "resource":
+				case entityTypeRes:
 					if i+2 >= len(args) {
 						fmt.Fprintln(os.Stderr, "Error: each resource must have a URI, description, and content")
 						fmt.Fprintln(os.Stderr, "Example: mcp mock resource docs:readme \"Documentation\" \"# README\"")

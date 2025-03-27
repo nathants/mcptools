@@ -1,3 +1,4 @@
+// Package mock provides a simple implementation of an MCP server for testing.
 package mock
 
 import (
@@ -7,35 +8,36 @@ import (
 	"strings"
 )
 
-// Tool represents a mock tool in the MCP protocol
+// Tool represents a mock tool in the MCP protocol.
 type Tool struct {
 	Name        string
 	Description string
 }
 
-// Prompt represents a mock prompt in the MCP protocol
+// Prompt represents a mock prompt in the MCP protocol.
 type Prompt struct {
 	Name        string
 	Description string
 	Template    string
 }
 
-// Resource represents a mock resource in the MCP protocol
+// Resource represents a mock resource in the MCP protocol.
 type Resource struct {
 	URI         string
 	Description string
 	Content     string
 }
 
-// Server is a mock MCP server that responds to JSON-RPC requests
+// Server is a mock MCP server that responds to JSON-RPC requests.
 type Server struct {
-	tools     map[string]Tool
-	prompts   map[string]Prompt
-	resources map[string]Resource
-	id        int
+	// Fields ordered for optimal memory alignment
+	tools     map[string]Tool     // pointer (8 bytes)
+	prompts   map[string]Prompt   // pointer (8 bytes)
+	resources map[string]Resource // pointer (8 bytes)
+	id        int                 // int (8 bytes)
 }
 
-// NewServer creates a new mock MCP server
+// NewServer creates a new mock MCP server.
 func NewServer() *Server {
 	return &Server{
 		tools:     make(map[string]Tool),
@@ -45,7 +47,7 @@ func NewServer() *Server {
 	}
 }
 
-// AddTool adds a new tool to the mock server
+// AddTool adds a new tool to the mock server.
 func (s *Server) AddTool(name, description string) {
 	s.tools[name] = Tool{
 		Name:        name,
@@ -53,7 +55,7 @@ func (s *Server) AddTool(name, description string) {
 	}
 }
 
-// AddPrompt adds a new prompt to the mock server
+// AddPrompt adds a new prompt to the mock server.
 func (s *Server) AddPrompt(name, description, template string) {
 	s.prompts[name] = Prompt{
 		Name:        name,
@@ -62,7 +64,7 @@ func (s *Server) AddPrompt(name, description, template string) {
 	}
 }
 
-// AddResource adds a new resource to the mock server
+// AddResource adds a new resource to the mock server.
 func (s *Server) AddResource(uri, description, content string) {
 	s.resources[uri] = Resource{
 		URI:         uri,
@@ -71,18 +73,19 @@ func (s *Server) AddResource(uri, description, content string) {
 	}
 }
 
-// Start begins listening for JSON-RPC requests on stdin and responding on stdout
+// Start begins listening for JSON-RPC requests on stdin and responding on stdout.
 func (s *Server) Start() error {
 	decoder := json.NewDecoder(os.Stdin)
 
 	fmt.Fprintf(os.Stderr, "Mock server started, waiting for requests...\n")
 
 	for {
+		// Request struct with fields ordered for optimal memory alignment
 		var request struct {
-			JSONRPC string         `json:"jsonrpc"`
-			Method  string         `json:"method"`
-			ID      int            `json:"id"`
-			Params  map[string]any `json:"params,omitempty"`
+			Method  string         `json:"method"`           // string (16 bytes: pointer + len)
+			Params  map[string]any `json:"params,omitempty"` // map (8 bytes)
+			JSONRPC string         `json:"jsonrpc"`          // string (16 bytes: pointer + len)
+			ID      int            `json:"id"`               // int (8 bytes)
 		}
 
 		fmt.Fprintf(os.Stderr, "Waiting for request...\n")
@@ -105,21 +108,21 @@ func (s *Server) Start() error {
 
 		switch request.Method {
 		case "initialize":
-			response, err = s.handleInitialize(request.Params)
+			response = s.handleInitialize(request.Params)
 		case "tools/list":
-			response, err = s.handleToolsList()
+			response = s.handleToolsList()
 		case "tools/call":
 			response, err = s.handleToolCall(request.Params)
 		case "resources/list":
-			response, err = s.handleResourcesList()
+			response = s.handleResourcesList()
 		case "resources/read":
 			response, err = s.handleResourceRead(request.Params)
 		case "prompts/list":
-			response, err = s.handlePromptsList()
+			response = s.handlePromptsList()
 		case "prompts/get":
 			response, err = s.handlePromptGet(request.Params)
 		default:
-			err = fmt.Errorf("Method not found")
+			err = fmt.Errorf("method not found")
 		}
 
 		if err != nil {
@@ -133,8 +136,8 @@ func (s *Server) Start() error {
 	}
 }
 
-// handleInitialize handles the initialize request from the client
-func (s *Server) handleInitialize(params map[string]any) (map[string]any, error) {
+// handleInitialize handles the initialize request from the client.
+func (s *Server) handleInitialize(params map[string]any) map[string]any {
 	// Log the initialization parameters
 	if clientInfo, ok := params["clientInfo"].(map[string]any); ok {
 		clientName, _ := clientInfo["name"].(string)
@@ -168,11 +171,11 @@ func (s *Server) handleInitialize(params map[string]any) (map[string]any, error)
 			"name":    "mcp-mock-server",
 			"version": "1.0.0",
 		},
-	}, nil
+	}
 }
 
-// handleToolsList returns the list of available tools
-func (s *Server) handleToolsList() (map[string]any, error) {
+// handleToolsList returns the list of available tools.
+func (s *Server) handleToolsList() map[string]any {
 	tools := make([]map[string]any, 0, len(s.tools))
 
 	for _, tool := range s.tools {
@@ -188,10 +191,10 @@ func (s *Server) handleToolsList() (map[string]any, error) {
 
 	return map[string]any{
 		"tools": tools,
-	}, nil
+	}
 }
 
-// handleToolCall handles a tool call request
+// handleToolCall handles a tool call request.
 func (s *Server) handleToolCall(params map[string]any) (map[string]any, error) {
 	nameValue, ok := params["name"]
 	if !ok {
@@ -219,12 +222,12 @@ func (s *Server) handleToolCall(params map[string]any) (map[string]any, error) {
 	}, nil
 }
 
-// handleResourcesList returns the list of available resources
-func (s *Server) handleResourcesList() (map[string]any, error) {
+// handleResourcesList returns the list of available resources.
+func (s *Server) handleResourcesList() map[string]any {
 	if len(s.resources) == 0 {
 		return map[string]any{
 			"resources": []map[string]any{},
-		}, nil
+		}
 	}
 
 	resources := make([]map[string]any, 0, len(s.resources))
@@ -240,10 +243,10 @@ func (s *Server) handleResourcesList() (map[string]any, error) {
 
 	return map[string]any{
 		"resources": resources,
-	}, nil
+	}
 }
 
-// handleResourceRead handles a resource read request
+// handleResourceRead handles a resource read request.
 func (s *Server) handleResourceRead(params map[string]any) (map[string]any, error) {
 	uriValue, ok := params["uri"]
 	if !ok {
@@ -272,12 +275,12 @@ func (s *Server) handleResourceRead(params map[string]any) (map[string]any, erro
 	}, nil
 }
 
-// handlePromptsList returns the list of available prompts
-func (s *Server) handlePromptsList() (map[string]any, error) {
+// handlePromptsList returns the list of available prompts.
+func (s *Server) handlePromptsList() map[string]any {
 	if len(s.prompts) == 0 {
 		return map[string]any{
 			"prompts": []map[string]any{},
-		}, nil
+		}
 	}
 
 	prompts := make([]map[string]any, 0, len(s.prompts))
@@ -301,11 +304,11 @@ func (s *Server) handlePromptsList() (map[string]any, error) {
 
 	return map[string]any{
 		"prompts": prompts,
-	}, nil
+	}
 }
 
 // extractArgumentsFromTemplate parses a template string to find placeholders in the format {{argument_name}}
-// and returns a list of argument objects
+// and returns a list of argument objects.
 func extractArgumentsFromTemplate(template string) []map[string]any {
 	// Simple implementation - in a real scenario, you might want to use regex
 	var arguments []map[string]any
@@ -353,7 +356,7 @@ func extractArgumentsFromTemplate(template string) []map[string]any {
 	return arguments
 }
 
-// handlePromptGet handles a prompt get request
+// handlePromptGet handles a prompt get request.
 func (s *Server) handlePromptGet(params map[string]any) (map[string]any, error) {
 	nameValue, ok := params["name"]
 	if !ok {
@@ -374,8 +377,8 @@ func (s *Server) handlePromptGet(params map[string]any) (map[string]any, error) 
 	content := prompt.Template
 
 	// Get arguments if provided and substitute them in the template
-	if argsValue, ok := params["arguments"]; ok {
-		if args, ok := argsValue.(map[string]any); ok {
+	if argsValue, hasArgs := params["arguments"]; hasArgs {
+		if args, isMap := argsValue.(map[string]any); isMap {
 			fmt.Fprintf(os.Stderr, "Prompt arguments received: %v\n", args)
 
 			// Simple placeholder substitution
@@ -415,7 +418,7 @@ func (s *Server) handlePromptGet(params map[string]any) (map[string]any, error) 
 	}, nil
 }
 
-// writeResponse writes a successful JSON-RPC response to stdout
+// writeResponse writes a successful JSON-RPC response to stdout.
 func (s *Server) writeResponse(result any) {
 	response := map[string]any{
 		"jsonrpc": "2.0",
@@ -429,11 +432,11 @@ func (s *Server) writeResponse(result any) {
 	}
 }
 
-// writeError writes a JSON-RPC error response to stdout
+// writeError writes a JSON-RPC error response to stdout.
 func (s *Server) writeError(err error) {
 	// Use method not found error code for unsupported methods
 	code := -32000 // Default server error
-	if err.Error() == "Method not found" {
+	if err.Error() == "method not found" {
 		code = -32601 // Method not found error code
 	}
 
@@ -452,7 +455,7 @@ func (s *Server) writeError(err error) {
 	}
 }
 
-// RunMockServer creates and runs a mock MCP server with the specified entities
+// RunMockServer creates and runs a mock MCP server with the specified entities.
 func RunMockServer(tools map[string]string, prompts map[string]map[string]string, resources map[string]map[string]string) error {
 	server := NewServer()
 
