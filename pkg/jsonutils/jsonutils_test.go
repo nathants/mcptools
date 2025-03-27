@@ -9,10 +9,10 @@ import (
 // TestWrapText tests the text wrapping functionality.
 func TestWrapText(t *testing.T) {
 	testCases := []struct {
-		name     string
-		width    int
-		text     string
-		expected []string
+		expected []string // Slice pointer (largest)
+		name     string   // String
+		text     string   // String
+		width    int      // Integer (smallest)
 	}{
 		{
 			name:     "empty text",
@@ -204,26 +204,26 @@ func TestToolsListFormatting(t *testing.T) {
 			"description": "This is a longer description that should wrap across multiple lines in the table output when displayed to the user",
 		},
 	}
-	
+
 	// Convert to expected structure
 	toolsData := map[string]any{
 		"tools": tools,
 	}
-	
+
 	output, err := formatTable(toolsData)
 	if err != nil {
 		t.Fatalf("Error formatting tools list: %v", err)
 	}
-	
+
 	// Basic verification
 	if !strings.Contains(output, "NAME") || !strings.Contains(output, "DESCRIPTION") {
 		t.Errorf("Missing table headers in output: %s", output)
 	}
-	
+
 	if !strings.Contains(output, "tool1") || !strings.Contains(output, "tool2") {
 		t.Errorf("Missing tool names in output: %s", output)
 	}
-	
+
 	if !strings.Contains(output, "This is a short description") {
 		t.Errorf("Missing tool description in output: %s", output)
 	}
