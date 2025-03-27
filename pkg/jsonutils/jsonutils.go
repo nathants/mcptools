@@ -133,7 +133,7 @@ func formatToolsList(tools any) (string, error) {
 	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
 
 	if descColWidth < 10 {
-		descColWidth = max(10, termWidth - nameColWidth - 5) // Adaptive minimum width
+		descColWidth = max(10, termWidth-nameColWidth-5) // Adaptive minimum width
 	}
 
 	for _, t := range toolsSlice {
