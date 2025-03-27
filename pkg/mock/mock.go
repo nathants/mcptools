@@ -1,0 +1,479 @@
+package mock
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+)
+
+// Tool represents a mock tool in the MCP protocol
+type Tool struct {
+	Name        string
+	Description string
+}
+
+// Prompt represents a mock prompt in the MCP protocol
+type Prompt struct {
+	Name        string
+	Description string
+	Template    string
+}
+
+// Resource represents a mock resource in the MCP protocol
+type Resource struct {
+	URI         string
+	Description string
+	Content     string
+}
+
+// Server is a mock MCP server that responds to JSON-RPC requests
+type Server struct {
+	tools     map[string]Tool
+	prompts   map[string]Prompt
+	resources map[string]Resource
+	id        int
+}
+
+// NewServer creates a new mock MCP server
+func NewServer() *Server {
+	return &Server{
+		tools:     make(map[string]Tool),
+		prompts:   make(map[string]Prompt),
+		resources: make(map[string]Resource),
+		id:        0,
+	}
+}
+
+// AddTool adds a new tool to the mock server
+func (s *Server) AddTool(name, description string) {
+	s.tools[name] = Tool{
+		Name:        name,
+		Description: description,
+	}
+}
+
+// AddPrompt adds a new prompt to the mock server
+func (s *Server) AddPrompt(name, description, template string) {
+	s.prompts[name] = Prompt{
+		Name:        name,
+		Description: description,
+		Template:    template,
+	}
+}
+
+// AddResource adds a new resource to the mock server
+func (s *Server) AddResource(uri, description, content string) {
+	s.resources[uri] = Resource{
+		URI:         uri,
+		Description: description,
+		Content:     content,
+	}
+}
+
+// Start begins listening for JSON-RPC requests on stdin and responding on stdout
+func (s *Server) Start() error {
+	decoder := json.NewDecoder(os.Stdin)
+
+	fmt.Fprintf(os.Stderr, "Mock server started, waiting for requests...\n")
+
+	for {
+		var request struct {
+			JSONRPC string         `json:"jsonrpc"`
+			Method  string         `json:"method"`
+			ID      int            `json:"id"`
+			Params  map[string]any `json:"params,omitempty"`
+		}
+
+		fmt.Fprintf(os.Stderr, "Waiting for request...\n")
+		if err := decoder.Decode(&request); err != nil {
+			fmt.Fprintf(os.Stderr, "Error decoding request: %v\n", err)
+			return fmt.Errorf("error decoding request: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "Received request: %s (ID: %d)\n", request.Method, request.ID)
+		s.id = request.ID
+
+		// Handle notifications (methods without an ID)
+		if request.Method == "notifications/initialized" {
+			fmt.Fprintf(os.Stderr, "Received initialization notification\n")
+			continue
+		}
+
+		var response any
+		var err error
+
+		switch request.Method {
+		case "initialize":
+			response, err = s.handleInitialize(request.Params)
+		case "tools/list":
+			response, err = s.handleToolsList()
+		case "tools/call":
+			response, err = s.handleToolCall(request.Params)
+		case "resources/list":
+			response, err = s.handleResourcesList()
+		case "resources/read":
+			response, err = s.handleResourceRead(request.Params)
+		case "prompts/list":
+			response, err = s.handlePromptsList()
+		case "prompts/get":
+			response, err = s.handlePromptGet(request.Params)
+		default:
+			err = fmt.Errorf("Method not found")
+		}
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error handling request: %v\n", err)
+			s.writeError(err)
+			continue
+		}
+
+		fmt.Fprintf(os.Stderr, "Sending response\n")
+		s.writeResponse(response)
+	}
+}
+
+// handleInitialize handles the initialize request from the client
+func (s *Server) handleInitialize(params map[string]any) (map[string]any, error) {
+	// Log the initialization parameters
+	if clientInfo, ok := params["clientInfo"].(map[string]any); ok {
+		clientName, _ := clientInfo["name"].(string)
+		clientVersion, _ := clientInfo["version"].(string)
+		fmt.Fprintf(os.Stderr, "Client initialized: %s v%s\n", clientName, clientVersion)
+	}
+
+	// Extract protocol version from params, defaulting to latest if not provided
+	protocolVersion := "2024-11-05"
+	if version, ok := params["protocolVersion"].(string); ok {
+		protocolVersion = version
+	}
+
+	// Return server information and capabilities in the format expected by clients
+	capabilities := map[string]any{
+		"tools": map[string]any{},
+	}
+
+	if len(s.prompts) > 0 {
+		capabilities["prompts"] = map[string]any{}
+	}
+
+	if len(s.resources) > 0 {
+		capabilities["resources"] = map[string]any{}
+	}
+
+	return map[string]any{
+		"protocolVersion": protocolVersion,
+		"capabilities":    capabilities,
+		"serverInfo": map[string]any{
+			"name":    "mcp-mock-server",
+			"version": "1.0.0",
+		},
+	}, nil
+}
+
+// handleToolsList returns the list of available tools
+func (s *Server) handleToolsList() (map[string]any, error) {
+	tools := make([]map[string]any, 0, len(s.tools))
+
+	for _, tool := range s.tools {
+		tools = append(tools, map[string]any{
+			"name":        tool.Name,
+			"description": tool.Description,
+			"inputSchema": map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			},
+		})
+	}
+
+	return map[string]any{
+		"tools": tools,
+	}, nil
+}
+
+// handleToolCall handles a tool call request
+func (s *Server) handleToolCall(params map[string]any) (map[string]any, error) {
+	nameValue, ok := params["name"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'name' parameter")
+	}
+
+	name, ok := nameValue.(string)
+	if !ok {
+		return nil, fmt.Errorf("'name' parameter must be a string")
+	}
+
+	tool, exists := s.tools[name]
+	if !exists {
+		return nil, fmt.Errorf("tool not found: %s", name)
+	}
+
+	// Return a mock response in the correct format for the MCP protocol
+	return map[string]any{
+		"content": []map[string]any{
+			{
+				"type": "text",
+				"text": fmt.Sprintf("hello i am %s mock tool and i confirm it's working", tool.Name),
+			},
+		},
+	}, nil
+}
+
+// handleResourcesList returns the list of available resources
+func (s *Server) handleResourcesList() (map[string]any, error) {
+	if len(s.resources) == 0 {
+		return map[string]any{
+			"resources": []map[string]any{},
+		}, nil
+	}
+
+	resources := make([]map[string]any, 0, len(s.resources))
+
+	for _, resource := range s.resources {
+		resources = append(resources, map[string]any{
+			"uri":         resource.URI,
+			"name":        resource.URI, // Using URI as name if not specified
+			"description": resource.Description,
+			"mimeType":    "text/plain",
+		})
+	}
+
+	return map[string]any{
+		"resources": resources,
+	}, nil
+}
+
+// handleResourceRead handles a resource read request
+func (s *Server) handleResourceRead(params map[string]any) (map[string]any, error) {
+	uriValue, ok := params["uri"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'uri' parameter")
+	}
+
+	uri, ok := uriValue.(string)
+	if !ok {
+		return nil, fmt.Errorf("'uri' parameter must be a string")
+	}
+
+	resource, exists := s.resources[uri]
+	if !exists {
+		return nil, fmt.Errorf("resource not found: %s", uri)
+	}
+
+	// Return the resource content in the required format
+	return map[string]any{
+		"contents": []map[string]any{
+			{
+				"uri":      resource.URI,
+				"mimeType": "text/plain",
+				"text":     resource.Content,
+			},
+		},
+	}, nil
+}
+
+// handlePromptsList returns the list of available prompts
+func (s *Server) handlePromptsList() (map[string]any, error) {
+	if len(s.prompts) == 0 {
+		return map[string]any{
+			"prompts": []map[string]any{},
+		}, nil
+	}
+
+	prompts := make([]map[string]any, 0, len(s.prompts))
+
+	for _, prompt := range s.prompts {
+		// Extract arguments from the template
+		arguments := extractArgumentsFromTemplate(prompt.Template)
+
+		promptInfo := map[string]any{
+			"name":        prompt.Name,
+			"description": prompt.Description,
+		}
+
+		// Only include arguments if there are any
+		if len(arguments) > 0 {
+			promptInfo["arguments"] = arguments
+		}
+
+		prompts = append(prompts, promptInfo)
+	}
+
+	return map[string]any{
+		"prompts": prompts,
+	}, nil
+}
+
+// extractArgumentsFromTemplate parses a template string to find placeholders in the format {{argument_name}}
+// and returns a list of argument objects
+func extractArgumentsFromTemplate(template string) []map[string]any {
+	// Simple implementation - in a real scenario, you might want to use regex
+	var arguments []map[string]any
+
+	// Find all occurrences of {{...}} in the template
+	startIndex := 0
+	for {
+		start := strings.Index(template[startIndex:], "{{")
+		if start == -1 {
+			break
+		}
+		start += startIndex
+
+		end := strings.Index(template[start:], "}}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		// Extract the argument name from between {{ and }}
+		argName := strings.TrimSpace(template[start+2 : end])
+		if argName != "" {
+			// Check if this argument is already in our list
+			found := false
+			for _, arg := range arguments {
+				if name, ok := arg["name"].(string); ok && name == argName {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				// Add the argument to our list
+				arguments = append(arguments, map[string]any{
+					"name":        argName,
+					"description": argName,
+					"required":    true,
+				})
+			}
+		}
+
+		startIndex = end + 2
+	}
+
+	return arguments
+}
+
+// handlePromptGet handles a prompt get request
+func (s *Server) handlePromptGet(params map[string]any) (map[string]any, error) {
+	nameValue, ok := params["name"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'name' parameter")
+	}
+
+	name, ok := nameValue.(string)
+	if !ok {
+		return nil, fmt.Errorf("'name' parameter must be a string")
+	}
+
+	prompt, exists := s.prompts[name]
+	if !exists {
+		return nil, fmt.Errorf("prompt not found: %s", name)
+	}
+
+	// Format the template with arguments if available
+	content := prompt.Template
+
+	// Get arguments if provided and substitute them in the template
+	if argsValue, ok := params["arguments"]; ok {
+		if args, ok := argsValue.(map[string]any); ok {
+			fmt.Fprintf(os.Stderr, "Prompt arguments received: %v\n", args)
+
+			// Simple placeholder substitution
+			for argName, argValue := range args {
+				placeholder := "{{" + argName + "}}"
+
+				// Convert argValue to string for substitution
+				var stringValue string
+				switch v := argValue.(type) {
+				case string:
+					stringValue = v
+				default:
+					// Use fmt.Sprintf for any other type
+					stringValue = fmt.Sprintf("%v", v)
+				}
+
+				content = strings.ReplaceAll(content, placeholder, stringValue)
+			}
+		}
+	}
+
+	// Create a user message with the content
+	message := map[string]any{
+		"role": "user",
+		"content": map[string]any{
+			"type": "text",
+			"text": content,
+		},
+	}
+
+	// Return the prompt in the correct format
+	return map[string]any{
+		"description": prompt.Description,
+		"messages": []map[string]any{
+			message,
+		},
+	}, nil
+}
+
+// writeResponse writes a successful JSON-RPC response to stdout
+func (s *Server) writeResponse(result any) {
+	response := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      s.id,
+		"result":  result,
+	}
+
+	err := json.NewEncoder(os.Stdout).Encode(response)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding response: %v\n", err)
+	}
+}
+
+// writeError writes a JSON-RPC error response to stdout
+func (s *Server) writeError(err error) {
+	// Use method not found error code for unsupported methods
+	code := -32000 // Default server error
+	if err.Error() == "Method not found" {
+		code = -32601 // Method not found error code
+	}
+
+	response := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      s.id,
+		"error": map[string]any{
+			"code":    code,
+			"message": err.Error(),
+		},
+	}
+
+	encodeErr := json.NewEncoder(os.Stdout).Encode(response)
+	if encodeErr != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding error response: %v\n", encodeErr)
+	}
+}
+
+// RunMockServer creates and runs a mock MCP server with the specified entities
+func RunMockServer(tools map[string]string, prompts map[string]map[string]string, resources map[string]map[string]string) error {
+	server := NewServer()
+
+	// Add tools
+	for name, desc := range tools {
+		server.AddTool(name, desc)
+	}
+
+	// Add prompts
+	for name, promptInfo := range prompts {
+		desc := promptInfo["description"]
+		template := promptInfo["template"]
+		server.AddPrompt(name, desc, template)
+	}
+
+	// Add resources
+	for uri, resourceInfo := range resources {
+		desc := resourceInfo["description"]
+		content := resourceInfo["content"]
+		server.AddResource(uri, desc, content)
+	}
+
+	return server.Start()
+}
