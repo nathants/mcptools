@@ -9,9 +9,9 @@ import (
 // TestWrapText tests the text wrapping functionality.
 func TestWrapText(t *testing.T) {
 	testCases := []struct {
-		expected []string // Slice pointer (largest)
 		name     string   // String
 		text     string   // String
+		expected []string // Slice pointer (largest)
 		width    int      // Integer (smallest)
 	}{
 		{
@@ -170,16 +170,16 @@ func TestFormat(t *testing.T) {
 
 func TestParseFormat(t *testing.T) {
 	testCases := []struct {
-		input    string
 		expected OutputFormat
+		input    string
 	}{
-		{"json", FormatJSON},
-		{"J", FormatJSON},
-		{"pretty", FormatPretty},
-		{"P", FormatPretty},
-		{"table", FormatTable},
-		{"T", FormatTable},
-		{"unknown", FormatTable}, // Default is table
+		{FormatJSON, "json"},
+		{FormatJSON, "J"},
+		{FormatPretty, "pretty"},
+		{FormatPretty, "P"},
+		{FormatTable, "table"},
+		{FormatTable, "T"},
+		{FormatTable, "unknown"},
 	}
 
 	for _, tc := range testCases {
