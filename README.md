@@ -47,6 +47,7 @@ The binary will be installed as `mcptools` but can be aliased to `mcpt` for conv
     Available Commands:
       call           Call a tool, resource, or prompt on the MCP server
       help           Help about any command
+      mock           Create a mock MCP server with tools, prompts, and resources
       prompts        List available prompts on the MCP server
       resources      List available resources on the MCP server
       shell          Start an interactive shell for MCP commands
@@ -191,6 +192,35 @@ This opens an interactive shell where you can run MCP commands:
     mcp > /q
     Exiting MCP shell
 
+### Mock Server Mode
+
+Create a mock MCP server for testing clients without implementing a full server:
+
+```bash
+# Create a mock server with a simple tool
+mcp mock tool hello_world "A simple greeting tool"
+
+# Create a mock server with a tool, prompt, and resource
+mcp mock tool hello_world "A greeting tool" \
+       prompt welcome "A welcome prompt" "Hello {{name}}, welcome to {{location}}!" \
+       resource docs://readme "Documentation" "Mock MCP Server\nThis is a mock server"
+```
+
+The mock server implements the MCP protocol with:
+- Full initialization handshake (initialize method)
+- Tool listing with standardized schema format
+- Tool calling with simple responses
+- Resource listing and reading with proper format
+- Prompt listing and retrieving with proper format, including arguments
+
+For prompts, any text in `{{double_braces}}` is automatically detected as an argument:
+
+```bash
+# Create a prompt with name and location arguments
+mcp mock prompt greeting "Greeting template" "Hello {{name}}! Welcome to {{location}}."
+```
+
+When a client requests the prompt, it can provide values for these arguments which will be substituted in the response.
 
 ## Examples
 
@@ -210,6 +240,15 @@ Using the interactive shell mode:
 
 ```bash
 mcp shell npx -y @modelcontextprotocol/server-filesystem ~
+```
+
+Creating a mock server for testing:
+
+```bash
+# Create a mock server with multiple entity types
+mcp mock tool file_reader "Reads files" \
+      prompt code_review "Code review prompt" "Please review this {{language}} code: {{code}}" \
+      resource docs://api "API Documentation" "# API Reference\n\nThis document describes the API."
 ```
 
 ## Contributing
