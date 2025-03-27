@@ -52,6 +52,6 @@ test: check-go
 	@echo "$(YELLOW)Running tests...$(NC)"
 	go test -v ./...
 
-lint: check_go
+lint: check-go
 	@echo "$(BLUE)Running linter...$(NC)"
 	golangci-lint run ./...
