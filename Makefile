@@ -6,6 +6,7 @@ RED=\033[0;31m
 NC=\033[0m # No Color
 
 BINARY_NAME=mcp
+ALIAS_NAME=mcpt
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
@@ -43,6 +44,13 @@ build-all: clean
 install:
 	@echo "$(BLUE)Installing $(BINARY_NAME)...$(NC)"
 	go install $(LDFLAGS) ./cmd/mcptools
+	@echo "$(BLUE)Creating $(ALIAS_NAME) alias...$(NC)"
+	@if [ -f "$(shell go env GOPATH)/bin/$(BINARY_NAME)" ]; then \
+		ln -sf "$(shell go env GOPATH)/bin/$(BINARY_NAME)" "$(shell go env GOPATH)/bin/$(ALIAS_NAME)"; \
+		echo "$(GREEN)Alias $(ALIAS_NAME) created successfully in $(shell go env GOPATH)/bin/$(NC)"; \
+	else \
+		echo "$(RED)Warning: $(BINARY_NAME) binary not found in $(shell go env GOPATH)/bin/$(NC)"; \
+	fi
 
 clean:
 	@echo "$(RED)Cleaning build artifacts...$(NC)"

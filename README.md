@@ -30,11 +30,15 @@ brew tap f/mcptools
 brew install mcp
 ```
 
+> ❕ The binary is installed as `mcp` but can also be accessed as `mcpt` to avoid conflicts with other tools that might use the `mcp` command name.
+
 ### From Source
 
 ```bash
 go install github.com/f/mcptools/cmd/mcptools@latest
 ```
+
+The binary will be installed as `mcptools` but can be aliased to `mcpt` for convenience and to avoid conflicts with other tools that might use the `mcp` command name.
 
 ## Usage
 
