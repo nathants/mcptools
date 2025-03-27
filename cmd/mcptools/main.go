@@ -152,7 +152,7 @@ func newToolsCmd() *cobra.Command {
 			mcpClient, err := createClient(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				fmt.Fprintf(os.Stderr, "Example: mcp tools npx -y @modelcontextprotocol/server-filesystem ~/Code\n")
+				fmt.Fprintf(os.Stderr, "Example: mcp tools npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
 
@@ -182,7 +182,7 @@ func newResourcesCmd() *cobra.Command {
 			mcpClient, err := createClient(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				fmt.Fprintf(os.Stderr, "Example: mcp resources npx -y @modelcontextprotocol/server-filesystem ~/Code\n")
+				fmt.Fprintf(os.Stderr, "Example: mcp resources npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
 
@@ -212,7 +212,7 @@ func newPromptsCmd() *cobra.Command {
 			mcpClient, err := createClient(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~/Code\n")
+				fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
 
@@ -241,7 +241,7 @@ func newCallCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: entity name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -275,7 +275,7 @@ func newCallCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: entity name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -292,7 +292,7 @@ func newCallCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using stdio transport")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp call read_file npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -350,7 +350,7 @@ func newGetPromptCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: prompt name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -384,7 +384,7 @@ func newGetPromptCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: prompt name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp get-prompt read_file npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -428,7 +428,7 @@ func newReadResourceCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: resource name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -462,7 +462,7 @@ func newReadResourceCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: resource name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~/Code",
+					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -519,7 +519,7 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 
 			if len(parsedArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: command to execute is required when using the shell")
-				fmt.Fprintln(os.Stderr, "Example: mcp shell npx -y @modelcontextprotocol/server-filesystem ~/Code")
+				fmt.Fprintln(os.Stderr, "Example: mcp shell npx -y @modelcontextprotocol/server-filesystem ~")
 				os.Exit(1)
 			}
 
@@ -535,8 +535,9 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			fmt.Println("mcp > connected to MCP server over stdio")
-			fmt.Println("mcp > Type '/h' for help or '/q' to quit")
+			fmt.Println("mcp tools shell")
+			fmt.Println("connected to:", strings.Join(parsedArgs, " "))
+			fmt.Println("\nmcp > Type '/h' for help or '/q' to quit")
 
 			line := liner.NewLiner()
 			defer func() { _ = line.Close() }()
