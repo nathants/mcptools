@@ -17,12 +17,6 @@ This will open a shell as following:
 
 ![MCP Tools Screenshot](.github/resources/screenshot.png)
 
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) 
-for details on how to submit pull requests, report issues, and contribute to the 
-project.
-
 ## Installation
 
 ### Using Homebrew
@@ -217,6 +211,12 @@ Using the interactive shell mode:
 ```bash
 mcp shell npx -y @modelcontextprotocol/server-filesystem ~
 ```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) 
+for details on how to submit pull requests, report issues, and contribute to the 
+project.
 
 ## Roadmap
 
