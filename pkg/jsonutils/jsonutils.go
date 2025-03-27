@@ -7,10 +7,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"golang.org/x/term"
 )
 
 // OutputFormat represents the available output format options.
@@ -108,6 +111,7 @@ func formatTable(data any) (string, error) {
 	return formatGenericMap(mapVal)
 }
 
+// formatToolsList formats a list of tools as a table
 func formatToolsList(tools any) (string, error) {
 	toolsSlice, ok := tools.([]any)
 	if !ok {
@@ -119,10 +123,18 @@ func formatToolsList(tools any) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.StripEscape)
 
 	fmt.Fprintln(w, "NAME\tDESCRIPTION")
 	fmt.Fprintln(w, "----\t-----------")
+
+	termWidth := getTermWidth()
+	nameColWidth := 20        // Default name column width
+	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
+	
+	if descColWidth < 10 {
+		descColWidth = 40 // Minimum width if terminal is too narrow
+	}
 
 	for _, t := range toolsSlice {
 		tool, ok1 := t.(map[string]any)
@@ -133,17 +145,77 @@ func formatToolsList(tools any) (string, error) {
 		name, _ := tool["name"].(string)
 		desc, _ := tool["description"].(string)
 
-		if len(desc) > 70 {
-			desc = desc[:67] + "..."
+		// Handle multiline description
+		lines := wrapText(desc, descColWidth)
+		
+		if len(lines) == 0 {
+			fmt.Fprintf(w, "%s\t\n", name)
+			continue
 		}
-
-		fmt.Fprintf(w, "%s\t%s\n", name, desc)
+		
+		// First line with name
+		fmt.Fprintf(w, "%s\t%s\n", name, lines[0])
+		
+		// Remaining lines with empty name column
+		for _, line := range lines[1:] {
+			fmt.Fprintf(w, "\t%s\n", line)
+		}
+		
+		// Add a blank line between entries
+		if len(lines) > 1 {
+			fmt.Fprintln(w, "\t")
+		}
 	}
 
 	_ = w.Flush()
 	return buf.String(), nil
 }
 
+// getTermWidth returns the terminal width or a default value if detection fails
+func getTermWidth() int {
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || width <= 0 {
+		return 80 // Default width if terminal width cannot be determined
+	}
+	return width
+}
+
+// wrapText wraps text to fit within a specified width
+func wrapText(text string, width int) []string {
+	if text == "" {
+		return []string{}
+	}
+	
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{}
+	}
+	
+	var lines []string
+	var currentLine string
+	
+	for _, word := range words {
+		// Check if adding this word would exceed the width
+		if len(currentLine)+len(word)+1 > width && len(currentLine) > 0 {
+			// Add current line to lines and start a new line
+			lines = append(lines, currentLine)
+			currentLine = word
+		} else if len(currentLine) == 0 {
+			currentLine = word
+		} else {
+			currentLine += " " + word
+		}
+	}
+	
+	// Add the last line
+	if len(currentLine) > 0 {
+		lines = append(lines, currentLine)
+	}
+	
+	return lines
+}
+
+// formatResourcesList formats a list of resources as a table
 func formatResourcesList(resources any) (string, error) {
 	resourcesSlice, ok := resources.([]any)
 	if !ok {
@@ -169,7 +241,8 @@ func formatResourcesList(resources any) (string, error) {
 		name, _ := resource["name"].(string)
 		resType, _ := resource["type"].(string)
 		uri, _ := resource["uri"].(string)
-
+		
+		// Use the entire URI instead of truncating
 		fmt.Fprintf(w, "%s\t%s\t%s\n", name, resType, uri)
 	}
 
@@ -177,6 +250,7 @@ func formatResourcesList(resources any) (string, error) {
 	return buf.String(), nil
 }
 
+// formatPromptsList formats a list of prompts as a table
 func formatPromptsList(prompts any) (string, error) {
 	promptsSlice, ok := prompts.([]any)
 	if !ok {
@@ -188,10 +262,18 @@ func formatPromptsList(prompts any) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.StripEscape)
 
 	fmt.Fprintln(w, "NAME\tDESCRIPTION")
 	fmt.Fprintln(w, "----\t-----------")
+
+	termWidth := getTermWidth()
+	nameColWidth := 20        // Default name column width
+	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
+	
+	if descColWidth < 10 {
+		descColWidth = 40 // Minimum width if terminal is too narrow
+	}
 
 	for _, p := range promptsSlice {
 		prompt, ok1 := p.(map[string]any)
@@ -202,11 +284,26 @@ func formatPromptsList(prompts any) (string, error) {
 		name, _ := prompt["name"].(string)
 		desc, _ := prompt["description"].(string)
 
-		if len(desc) > 70 {
-			desc = desc[:67] + "..."
+		// Handle multiline description
+		lines := wrapText(desc, descColWidth)
+		
+		if len(lines) == 0 {
+			fmt.Fprintf(w, "%s\t\n", name)
+			continue
 		}
-
-		fmt.Fprintf(w, "%s\t%s\n", name, desc)
+		
+		// First line with name
+		fmt.Fprintf(w, "%s\t%s\n", name, lines[0])
+		
+		// Remaining lines with empty name column
+		for _, line := range lines[1:] {
+			fmt.Fprintf(w, "\t%s\n", line)
+		}
+		
+		// Add a blank line between entries
+		if len(lines) > 1 {
+			fmt.Fprintln(w, "\t")
+		}
 	}
 
 	_ = w.Flush()
