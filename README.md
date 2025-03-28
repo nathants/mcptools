@@ -287,10 +287,10 @@ The proxy mode allows you to register shell scripts or inline commands as MCP to
 mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./examples/add.sh
 
 # Register an inline command as an MCP tool
-mcp proxy tool add_op "Adds given numbers" "a:int,b:int" -e 'echo "total is $a + $b = $(($a+$b))"'
+mcp proxy tool add_operation "Adds a and b" "a:int,b:int" -e 'echo "total is $a + $b = $(($a+$b))"'
 
 # Unregister a tool
-mcp proxy tool --unregister add_op
+mcp proxy tool --unregister add_operation
 
 # Start the proxy server
 mcp proxy start
