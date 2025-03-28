@@ -213,7 +213,9 @@ mcp shell npx -y @modelcontextprotocol/server-filesystem ~
 This opens an interactive shell with the following capabilities:
 
 ```
-mcp > connected to MCP server over stdio
+mcp tools shell
+connected to: npx -y @modelcontextprotocol/server-filesystem /Users/fka
+
 mcp > Type '/h' for help or '/q' to quit
 mcp > tools
 NAME        DESCRIPTION
