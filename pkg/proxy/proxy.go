@@ -18,12 +18,13 @@ type Parameter struct {
 	Type string
 }
 
-// Tool represents a proxy tool that executes a shell script.
+// Tool represents a proxy tool that executes a shell script or command.
 type Tool struct {
 	// Fields ordered for optimal memory alignment (8-byte aligned fields first)
-	ScriptPath  string
 	Name        string
 	Description string
+	ScriptPath  string
+	Command     string // Inline command to execute
 	Parameters  []Parameter
 }
 
@@ -97,8 +98,25 @@ func (s *Server) Close() error {
 }
 
 // AddTool adds a new tool to the proxy server.
-func (s *Server) AddTool(name, description, paramStr, scriptPath string) error {
-	// Validate script path
+func (s *Server) AddTool(name, description, paramStr, scriptPath string, command string) error {
+	// Parse parameters
+	params, err := parseParameters(paramStr)
+	if err != nil {
+		return fmt.Errorf("invalid parameters: %w", err)
+	}
+
+	// If a command is provided, use it directly
+	if command != "" {
+		s.tools[name] = Tool{
+			Name:        name,
+			Description: description,
+			Parameters:  params,
+			Command:     command,
+		}
+		return nil
+	}
+
+	// Otherwise, validate and use the script path
 	absPath, err := filepath.Abs(scriptPath)
 	if err != nil {
 		return fmt.Errorf("invalid script path: %w", err)
@@ -120,12 +138,6 @@ func (s *Server) AddTool(name, description, paramStr, scriptPath string) error {
 	// Additional security check: verify the file is executable
 	if info.Mode()&0o111 == 0 {
 		return fmt.Errorf("script is not executable: %s", absPath)
-	}
-
-	// Parse parameters
-	params, err := parseParameters(paramStr)
-	if err != nil {
-		return fmt.Errorf("invalid parameters: %w", err)
 	}
 
 	s.tools[name] = Tool{
@@ -176,27 +188,14 @@ func parseParameters(paramStr string) ([]Parameter, error) {
 	return parameters, nil
 }
 
-// ExecuteScript executes a shell script with the given parameters.
+// ExecuteScript executes a shell script or command with the given parameters.
 func (s *Server) ExecuteScript(toolName string, args map[string]interface{}) (string, error) {
 	tool, exists := s.tools[toolName]
 	if !exists {
 		return "", fmt.Errorf("tool not found: %s", toolName)
 	}
 
-	// Additional runtime validation of script path
-	scriptPath := filepath.Clean(tool.ScriptPath)
-	info, err := os.Stat(scriptPath)
-	if err != nil {
-		return "", fmt.Errorf("script not found or not accessible: %w", err)
-	}
-	if info.IsDir() {
-		return "", fmt.Errorf("not a script: %s is a directory", scriptPath)
-	}
-	if info.Mode()&0o111 == 0 {
-		return "", fmt.Errorf("script is not executable: %s", scriptPath)
-	}
-
-	// Set up environment variables for the script
+	// Set up environment variables for the script/command
 	env := os.Environ()
 	for name, value := range args {
 		// Convert value to string
@@ -204,25 +203,42 @@ func (s *Server) ExecuteScript(toolName string, args map[string]interface{}) (st
 		env = append(env, fmt.Sprintf("%s=%s", name, strValue))
 	}
 
-	// Determine which shell to use for executing the script
+	// Determine which shell to use for executing the script/command
 	shell := "/bin/sh"
 	bashExists, statErr := os.Stat("/bin/bash")
 	if statErr == nil && !bashExists.IsDir() {
 		shell = "/bin/bash"
 	}
 
-	// Instead of using scriptPath directly (which would trigger gosec G204),
-	// we've already validated that this script is in our allowlist (s.tools)
-	// and we've performed additional validation above.
-	// #nosec G204 - scriptPath is validated and comes from a trusted source (config)
-	cmd := exec.Command(shell, "-c", scriptPath)
+	var cmd *exec.Cmd
+	if tool.Command != "" {
+		// Use the inline command
+		// #nosec G204 - Command is validated and comes from a trusted source (config)
+		cmd = exec.Command(shell, "-c", tool.Command)
+	} else {
+		// Use the script file
+		scriptPath := filepath.Clean(tool.ScriptPath)
+		info, err := os.Stat(scriptPath)
+		if err != nil {
+			return "", fmt.Errorf("script not found or not accessible: %w", err)
+		}
+		if info.IsDir() {
+			return "", fmt.Errorf("not a script: %s is a directory", scriptPath)
+		}
+		if info.Mode()&0o111 == 0 {
+			return "", fmt.Errorf("script is not executable: %s", scriptPath)
+		}
+		// #nosec G204 - scriptPath is validated and comes from a trusted source (config)
+		cmd = exec.Command(shell, "-c", scriptPath)
+	}
+
 	cmd.Env = env
 	cmd.Stderr = os.Stderr
 
 	// Execute and capture output
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("error executing script: %w", err)
+		return "", fmt.Errorf("error executing command: %w", err)
 	}
 
 	return string(output), nil
@@ -452,21 +468,21 @@ func (s *Server) handleToolCall(params map[string]interface{}) (map[string]inter
 	}
 
 	// Extract input arguments
-	inputValue, ok := params["input"]
+	argumentsValue, ok := params["arguments"]
 	if !ok {
-		return nil, fmt.Errorf("missing 'input' parameter")
+		return nil, fmt.Errorf("missing 'arguments' parameter")
 	}
 
-	input, ok := inputValue.(map[string]interface{})
+	arguments, ok := argumentsValue.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'input' parameter must be an object")
+		return nil, fmt.Errorf("'arguments' parameter must be an object")
 	}
 
 	// Log the input parameters
-	s.logJSON("Tool input", input)
+	s.logJSON("Tool input", arguments)
 
 	// Execute the shell script
-	output, err := s.ExecuteScript(name, input)
+	output, err := s.ExecuteScript(name, arguments)
 	if err != nil {
 		s.log(fmt.Sprintf("Error executing script: %v", err))
 		return nil, fmt.Errorf("error executing script: %w", err)
@@ -543,8 +559,9 @@ func RunProxyServer(toolConfigs map[string]map[string]string) error {
 		description := config["description"]
 		parameters := config["parameters"]
 		scriptPath := config["script"]
+		command := config["command"]
 
-		addErr := server.AddTool(name, description, parameters, scriptPath)
+		addErr := server.AddTool(name, description, parameters, scriptPath, command)
 		if addErr != nil {
 			return fmt.Errorf("error adding tool %s: %w", name, addErr)
 		}

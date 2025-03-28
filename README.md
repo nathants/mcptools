@@ -280,11 +280,17 @@ When a client requests the prompt, it can provide values for these arguments whi
 
 ### Proxy Mode
 
-The proxy mode allows you to register shell scripts as MCP tools, making it easy to extend MCP functionality without writing Go code:
+The proxy mode allows you to register shell scripts or inline commands as MCP tools, making it easy to extend MCP functionality without writing Go code:
 
 ```bash
 # Register a shell script as an MCP tool
 mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./examples/add.sh
+
+# Register an inline command as an MCP tool
+mcp proxy tool add_op "Adds given numbers" "a:int,b:int" -e 'echo "total is $a + $b = $(($a+$b))"'
+
+# Unregister a tool
+mcp proxy tool --unregister add_op
 
 # Start the proxy server
 mcp proxy start
@@ -292,10 +298,10 @@ mcp proxy start
 
 #### How It Works
 
-1. Register a shell script with a tool name, description, and parameter specification
+1. Register a shell script or inline command with a tool name, description, and parameter specification
 2. Start the proxy server, which implements the MCP protocol
-3. When a tool is called, parameters are passed as environment variables to the script
-4. The script's output is returned as the tool response
+3. When a tool is called, parameters are passed as environment variables to the script/command
+4. The script/command's output is returned as the tool response
 
 #### Parameter Types
 
@@ -305,7 +311,7 @@ Parameters are specified in the format `name:type,name:type,...` where `type` ca
 - `float`: Floating-point numbers
 - `bool`: Boolean values (true/false)
 
-#### Example Scripts
+#### Example Scripts and Commands
 
 **Adding Numbers (add.sh):**
 
@@ -322,46 +328,31 @@ result=$(($a + $b))
 echo "The sum of $a and $b is $result"
 ```
 
-**Customized Greeting (greet.sh):**
+**Inline Command Example:**
 
 ```bash
-#!/bin/bash
-# Get values from environment variables
-if [ -z "$name" ]; then
-  echo "Error: Missing required parameter 'name'"
-  exit 1
-fi
+# Simple addition
+mcp proxy tool add_op "Adds given numbers" "a:int,b:int" -e 'echo "total is $a + $b = $(($a+$b))"'
 
-# Set default values if not provided
-if [ -z "$greeting" ]; then
-  greeting="Hello"
-fi
-
-if [ -z "$formal" ]; then
-  formal=false
-fi
-
-# Customize greeting based on formal flag
+# Customized greeting
+mcp proxy tool greet "Greets a user" "name:string,greeting:string,formal:bool" -e '
 if [ "$formal" = "true" ]; then
   title="Mr./Ms."
-  message="${greeting}, ${title} ${name}. How may I assist you today?"
+  echo "${greeting:-Hello}, ${title} ${name}. How may I assist you today?"
 else
-  message="${greeting}, ${name}! Nice to meet you!"
+  echo "${greeting:-Hello}, ${name}! Nice to meet you!"
 fi
+'
 
-echo "$message"
-```
-
-Register with:
-
-```bash
-mcp proxy tool greet "Greets a user" "name:string,greeting:string,formal:bool" ./examples/greet.sh
+# File operations
+mcp proxy tool count_lines "Counts lines in a file" "file:string" -e "wc -l < \"$file\""
 ```
 
 #### Configuration and Logging
 
 - Tools are registered in `~/.mcpt/proxy_config.json`
 - The proxy server logs all requests and responses to `~/.mcpt/logs/proxy.log`
+- Use `--unregister` to remove a tool from the configuration
 
 ## Examples
 

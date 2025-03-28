@@ -967,78 +967,120 @@ Examples:
 	return cmd
 }
 
+// loadProxyConfig loads the proxy configuration from the config file.
+func loadProxyConfig() (map[string]map[string]string, error) {
+	// Initialize config
+	viper.SetConfigName("proxy_config")
+	viper.SetConfigType("json")
+	viper.AddConfigPath("$HOME/.mcpt")
+
+	// Create config directory if it doesn't exist
+	configDir := os.ExpandEnv("$HOME/.mcpt")
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
+		return nil, fmt.Errorf("error creating config directory: %w", err)
+	}
+
+	// Load existing config if it exists
+	var config map[string]map[string]string
+	var configFileNotFound viper.ConfigFileNotFoundError
+	err := viper.ReadInConfig()
+	if err != nil {
+		if errors.As(err, &configFileNotFound) {
+			// Config file not found, create a new one
+			config = make(map[string]map[string]string)
+		} else {
+			return nil, fmt.Errorf("error reading config: %w", err)
+		}
+	} else {
+		// Config file found, unmarshal it
+		config = make(map[string]map[string]string)
+		unmarshalErr := viper.Unmarshal(&config)
+		if unmarshalErr != nil {
+			return nil, fmt.Errorf("error unmarshaling config: %w", unmarshalErr)
+		}
+	}
+
+	return config, nil
+}
+
+// saveProxyConfig saves the proxy configuration to the config file.
+func saveProxyConfig(config map[string]map[string]string) error {
+	configPath := os.ExpandEnv("$HOME/.mcpt/proxy_config.json")
+	configJSON, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshaling config: %w", err)
+	}
+
+	writeErr := os.WriteFile(configPath, configJSON, 0o600)
+	if writeErr != nil {
+		return fmt.Errorf("error writing config: %w", writeErr)
+	}
+
+	return nil
+}
+
 func proxyToolCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tool NAME DESCRIPTION PARAMETERS SCRIPT_PATH",
+		Use:   "tool [name] [description] [parameters] [script]",
 		Short: "Register a shell script as an MCP tool",
-		Long: `Register a shell script as an MCP tool.
+		Long: `Register a shell script or inline command as an MCP tool that can be called via the MCP protocol.
+Parameters should be specified in the format "name:type,name:type,..." where type can be:
+- string: Text values
+- int: Integer numbers
+- float: Floating-point numbers
+- bool: Boolean values (true/false)
 
-The PARAMETERS argument should be a comma-separated list of "name:type" pairs.
-Supported types: string, int, float, bool
+The script or command will receive parameters as environment variables.
 
-Example:
-  mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./add.sh`,
-		Args: cobra.ExactArgs(4),
-		Run: func(_ *cobra.Command, args []string) {
+You can either provide a script file path or use the -e flag to specify an inline command.
+Example with script:
+  mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./add.sh
+
+Example with inline command:
+  mcp proxy tool add_op "Adds given numbers" "a:int,b:int" -e "echo \"total is $a + $b = ${$a+$b}\""`,
+		Args: cobra.RangeArgs(3, 4),
+		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			description := args[1]
 			parameters := args[2]
-			scriptPath := args[3]
-
-			// Initialize config
-			viper.SetConfigName("proxy_config")
-			viper.SetConfigType("json")
-			viper.AddConfigPath("$HOME/.mcpt")
-
-			// Create config directory if it doesn't exist
-			configDir := os.ExpandEnv("$HOME/.mcpt")
-			if err := os.MkdirAll(configDir, 0o750); err != nil {
-				log.Fatalf("Error creating config directory: %v", err)
+			scriptPath := ""
+			if len(args) > 3 {
+				scriptPath = args[3]
 			}
 
-			// Load existing config if it exists
-			var config map[string]map[string]string
-			var configFileNotFound viper.ConfigFileNotFoundError
-			err := viper.ReadInConfig()
-			if err != nil {
-				if errors.As(err, &configFileNotFound) {
-					// Config file not found, create a new one
-					config = make(map[string]map[string]string)
-				} else {
-					log.Fatalf("Error reading config: %v", err)
-				}
-			} else {
-				// Config file found, unmarshal it
-				config = make(map[string]map[string]string)
-				unmarshalErr := viper.Unmarshal(&config)
-				if unmarshalErr != nil {
-					log.Fatalf("Error unmarshaling config: %v", unmarshalErr)
-				}
+			// Get the inline command from the -e flag
+			command, _ := cmd.Flags().GetString("execute")
+
+			// Either script path or command must be provided
+			if scriptPath == "" && command == "" {
+				return fmt.Errorf("either script path or command (-e) must be provided")
 			}
 
-			// Add or update tool config
+			// Load existing config
+			config, loadErr := loadProxyConfig()
+			if loadErr != nil {
+				return fmt.Errorf("error loading config: %w", loadErr)
+			}
+
+			// Add the new tool to config
 			config[name] = map[string]string{
 				"description": description,
 				"parameters":  parameters,
 				"script":      scriptPath,
+				"command":     command,
 			}
 
-			// Save config
-			configPath := os.ExpandEnv("$HOME/.mcpt/proxy_config.json")
-			configJSON, err := json.MarshalIndent(config, "", "  ")
-			if err != nil {
-				log.Fatalf("Error marshaling config: %v", err)
+			// Save updated config
+			if saveErr := saveProxyConfig(config); saveErr != nil {
+				return fmt.Errorf("error saving config: %w", saveErr)
 			}
 
-			writeErr := os.WriteFile(configPath, configJSON, 0o600)
-			if writeErr != nil {
-				log.Fatalf("Error writing config: %v", writeErr)
-			}
-
-			fmt.Printf("Registered tool '%s' with script '%s'\n", name, scriptPath)
+			fmt.Printf("Registered tool: %s\n", name)
+			return nil
 		},
 	}
 
+	cmd.Flags().StringP("execute", "e", "", "Inline command to execute instead of a script file")
 	return cmd
 }
 
