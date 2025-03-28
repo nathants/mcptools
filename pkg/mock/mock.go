@@ -157,9 +157,9 @@ func (s *Server) Start() error {
 		if err := decoder.Decode(&request); err != nil {
 			if err == io.EOF {
 				s.log("Client disconnected (EOF)")
-			} else {
-				s.log(fmt.Sprintf("Error decoding request: %v", err))
+				return nil
 			}
+			s.log(fmt.Sprintf("Error decoding request: %v", err))
 			fmt.Fprintf(os.Stderr, "Error decoding request: %v\n", err)
 			return fmt.Errorf("error decoding request: %w", err)
 		}
