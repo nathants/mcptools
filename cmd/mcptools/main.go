@@ -957,6 +957,9 @@ Examples:
   # Register a shell script as an MCP tool
   mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./add.sh
 
+  # Register an inline command as an MCP tool
+  mcp proxy tool add_operation "Adds a and b" "a:int,b:int" -e 'echo "total is $a + $b = $(($a+$b))"'
+
   # Start a proxy server with the registered tools
   mcp proxy start`,
 	}
