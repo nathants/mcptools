@@ -280,7 +280,7 @@ When a client requests the prompt, it can provide values for these arguments whi
 
 ### Proxy Mode
 
-The proxy mode allows you to register shell scripts or inline commands as MCP tools, making it easy to extend MCP functionality without writing Go code:
+The proxy mode allows you to register shell scripts or inline commands as MCP tools, making it easy to extend MCP functionality without writing code:
 
 ```bash
 # Register a shell script as an MCP tool
