@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +15,10 @@ import (
 	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/jsonutils"
 	"github.com/f/mcptools/pkg/mock"
+	"github.com/f/mcptools/pkg/proxy"
 	"github.com/peterh/liner"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // version information placeholders.
@@ -61,6 +64,7 @@ func main() {
 		newReadResourceCmd(),
 		newShellCmd(),
 		newMockCmd(),
+		proxyCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -933,6 +937,140 @@ Example:
 			if err := mock.RunMockServer(tools, prompts, resources); err != nil {
 				fmt.Fprintf(os.Stderr, "Error running mock server: %v\n", err)
 				os.Exit(1)
+			}
+		},
+	}
+
+	return cmd
+}
+
+func proxyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "proxy",
+		Short: "Proxy MCP tool requests to shell scripts",
+		Long: `Proxy MCP tool requests to shell scripts.
+
+This command allows you to register shell scripts as MCP tools and proxy MCP requests to them.
+The scripts will receive tool parameters as environment variables.
+
+Examples:
+  # Register a shell script as an MCP tool
+  mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./add.sh
+
+  # Start a proxy server with the registered tools
+  mcp proxy start`,
+	}
+
+	cmd.AddCommand(proxyToolCmd())
+	cmd.AddCommand(proxyStartCmd())
+
+	return cmd
+}
+
+func proxyToolCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "tool NAME DESCRIPTION PARAMETERS SCRIPT_PATH",
+		Short: "Register a shell script as an MCP tool",
+		Long: `Register a shell script as an MCP tool.
+
+The PARAMETERS argument should be a comma-separated list of "name:type" pairs.
+Supported types: string, int, float, bool
+
+Example:
+  mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./add.sh`,
+		Args: cobra.ExactArgs(4),
+		Run: func(_ *cobra.Command, args []string) {
+			name := args[0]
+			description := args[1]
+			parameters := args[2]
+			scriptPath := args[3]
+
+			// Initialize config
+			viper.SetConfigName("proxy_config")
+			viper.SetConfigType("json")
+			viper.AddConfigPath("$HOME/.mcpt")
+
+			// Create config directory if it doesn't exist
+			configDir := os.ExpandEnv("$HOME/.mcpt")
+			if err := os.MkdirAll(configDir, 0o750); err != nil {
+				log.Fatalf("Error creating config directory: %v", err)
+			}
+
+			// Load existing config if it exists
+			var config map[string]map[string]string
+			var configFileNotFound viper.ConfigFileNotFoundError
+			err := viper.ReadInConfig()
+			if err != nil {
+				if errors.As(err, &configFileNotFound) {
+					// Config file not found, create a new one
+					config = make(map[string]map[string]string)
+				} else {
+					log.Fatalf("Error reading config: %v", err)
+				}
+			} else {
+				// Config file found, unmarshal it
+				config = make(map[string]map[string]string)
+				unmarshalErr := viper.Unmarshal(&config)
+				if unmarshalErr != nil {
+					log.Fatalf("Error unmarshaling config: %v", unmarshalErr)
+				}
+			}
+
+			// Add or update tool config
+			config[name] = map[string]string{
+				"description": description,
+				"parameters":  parameters,
+				"script":      scriptPath,
+			}
+
+			// Save config
+			configPath := os.ExpandEnv("$HOME/.mcpt/proxy_config.json")
+			configJSON, err := json.MarshalIndent(config, "", "  ")
+			if err != nil {
+				log.Fatalf("Error marshaling config: %v", err)
+			}
+
+			writeErr := os.WriteFile(configPath, configJSON, 0o600)
+			if writeErr != nil {
+				log.Fatalf("Error writing config: %v", writeErr)
+			}
+
+			fmt.Printf("Registered tool '%s' with script '%s'\n", name, scriptPath)
+		},
+	}
+
+	return cmd
+}
+
+func proxyStartCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "start",
+		Short: "Start a proxy server with registered tools",
+		Long: `Start a proxy server that forwards MCP tool requests to shell scripts.
+
+The server reads tool configurations from $HOME/.mcpt/proxy_config.json.
+
+Example:
+  mcp proxy start`,
+		Run: func(_ *cobra.Command, _ []string) {
+			// Load tool configurations
+			viper.SetConfigName("proxy_config")
+			viper.SetConfigType("json")
+			viper.AddConfigPath("$HOME/.mcpt")
+
+			if err := viper.ReadInConfig(); err != nil {
+				log.Fatalf("Error reading config: %v", err)
+			}
+
+			var config map[string]map[string]string
+			if err := viper.Unmarshal(&config); err != nil {
+				log.Fatalf("Error unmarshaling config: %v", err)
+			}
+
+			// Run proxy server
+			fmt.Println("Starting proxy server...")
+			if err := proxy.RunProxyServer(config); err != nil {
+				log.Fatalf("Error running proxy server: %v", err)
 			}
 		},
 	}
