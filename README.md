@@ -212,6 +212,7 @@ The mock server implements the MCP protocol with:
 - Tool calling with simple responses
 - Resource listing and reading with proper format
 - Prompt listing and retrieving with proper format, including arguments
+- Detailed request/response logging to `~/.mcpt/logs/mock.log`
 
 For prompts, any text in `{{double_braces}}` is automatically detected as an argument:
 

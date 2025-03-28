@@ -4,8 +4,11 @@ package mock
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Tool represents a mock tool in the MCP protocol.
@@ -30,21 +33,75 @@ type Resource struct {
 
 // Server is a mock MCP server that responds to JSON-RPC requests.
 type Server struct {
-	// Fields ordered for optimal memory alignment
+	// Fields ordered for optimal memory alignment (8-byte aligned fields first)
 	tools     map[string]Tool     // pointer (8 bytes)
 	prompts   map[string]Prompt   // pointer (8 bytes)
 	resources map[string]Resource // pointer (8 bytes)
+	logFile   *os.File            // pointer (8 bytes)
 	id        int                 // int (8 bytes)
 }
 
 // NewServer creates a new mock MCP server.
-func NewServer() *Server {
+func NewServer() (*Server, error) {
+	// Create log directory - using a fixed, safe path
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		return nil, fmt.Errorf("HOME environment variable not set")
+	}
+
+	logDir := filepath.Join(homeDir, ".mcpt", "logs")
+	if err := os.MkdirAll(logDir, 0o750); err != nil {
+		return nil, fmt.Errorf("error creating log directory: %w", err)
+	}
+
+	// Open log file - using a fixed, safe path
+	logPath := filepath.Join(logDir, "mock.log")
+	// Clean the path to avoid any path traversal
+	logPath = filepath.Clean(logPath)
+
+	// Verify the path is still under the expected log directory
+	if !strings.HasPrefix(logPath, logDir) {
+		return nil, fmt.Errorf("invalid log path: outside of log directory")
+	}
+
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("error opening log file: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "Logging to %s\n", logPath)
+
 	return &Server{
+		id:        0,
 		tools:     make(map[string]Tool),
 		prompts:   make(map[string]Prompt),
 		resources: make(map[string]Resource),
-		id:        0,
+		logFile:   logFile,
+	}, nil
+}
+
+// log writes a message to the log file with a timestamp.
+func (s *Server) log(message string) {
+	timestamp := time.Now().Format(time.RFC3339)
+	fmt.Fprintf(s.logFile, "[%s] %s\n", timestamp, message)
+}
+
+// logJSON writes a JSON-formatted message to the log file with a timestamp.
+func (s *Server) logJSON(label string, v any) {
+	jsonBytes, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		s.log(fmt.Sprintf("Error marshaling %s: %v", label, err))
+		return
 	}
+	s.log(fmt.Sprintf("%s: %s", label, string(jsonBytes)))
+}
+
+// Close closes the log file.
+func (s *Server) Close() error {
+	if s.logFile != nil {
+		return s.logFile.Close()
+	}
+	return nil
 }
 
 // AddTool adds a new tool to the mock server.
@@ -77,7 +134,15 @@ func (s *Server) AddResource(uri, description, content string) {
 func (s *Server) Start() error {
 	decoder := json.NewDecoder(os.Stdin)
 
+	s.log("Mock server started, waiting for requests...")
 	fmt.Fprintf(os.Stderr, "Mock server started, waiting for requests...\n")
+
+	// Check error from Close() when deferring
+	defer func() {
+		if err := s.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing log file: %v\n", err)
+		}
+	}()
 
 	for {
 		// Request struct with fields ordered for optimal memory alignment
@@ -90,16 +155,24 @@ func (s *Server) Start() error {
 
 		fmt.Fprintf(os.Stderr, "Waiting for request...\n")
 		if err := decoder.Decode(&request); err != nil {
+			if err == io.EOF {
+				s.log("Client disconnected (EOF)")
+			} else {
+				s.log(fmt.Sprintf("Error decoding request: %v", err))
+			}
 			fmt.Fprintf(os.Stderr, "Error decoding request: %v\n", err)
 			return fmt.Errorf("error decoding request: %w", err)
 		}
 
+		// Log the incoming request
+		s.logJSON("Received request", request)
 		fmt.Fprintf(os.Stderr, "Received request: %s (ID: %d)\n", request.Method, request.ID)
 		s.id = request.ID
 
 		// Handle notifications (methods without an ID)
 		if request.Method == "notifications/initialized" {
 			fmt.Fprintf(os.Stderr, "Received initialization notification\n")
+			s.log("Received initialization notification")
 			continue
 		}
 
@@ -127,6 +200,7 @@ func (s *Server) Start() error {
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error handling request: %v\n", err)
+			s.log(fmt.Sprintf("Error handling request: %v", err))
 			s.writeError(err)
 			continue
 		}
@@ -426,8 +500,12 @@ func (s *Server) writeResponse(result any) {
 		"result":  result,
 	}
 
+	// Log the outgoing response
+	s.logJSON("Sending response", response)
+
 	err := json.NewEncoder(os.Stdout).Encode(response)
 	if err != nil {
+		s.log(fmt.Sprintf("Error encoding response: %v", err))
 		fmt.Fprintf(os.Stderr, "Error encoding response: %v\n", err)
 	}
 }
@@ -449,15 +527,22 @@ func (s *Server) writeError(err error) {
 		},
 	}
 
+	// Log the outgoing error response
+	s.logJSON("Sending error response", response)
+
 	encodeErr := json.NewEncoder(os.Stdout).Encode(response)
 	if encodeErr != nil {
+		s.log(fmt.Sprintf("Error encoding error response: %v", encodeErr))
 		fmt.Fprintf(os.Stderr, "Error encoding error response: %v\n", encodeErr)
 	}
 }
 
 // RunMockServer creates and runs a mock MCP server with the specified entities.
 func RunMockServer(tools map[string]string, prompts map[string]map[string]string, resources map[string]map[string]string) error {
-	server := NewServer()
+	server, err := NewServer()
+	if err != nil {
+		return fmt.Errorf("error creating server: %w", err)
+	}
 
 	// Add tools
 	for name, desc := range tools {
@@ -477,6 +562,9 @@ func RunMockServer(tools map[string]string, prompts map[string]map[string]string
 		content := resourceInfo["content"]
 		server.AddResource(uri, desc, content)
 	}
+
+	server.log(fmt.Sprintf("Starting mock server with %d tools, %d prompts, and %d resources",
+		len(tools), len(prompts), len(resources)))
 
 	return server.Start()
 }

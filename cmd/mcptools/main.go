@@ -839,6 +839,7 @@ The mock server implements the MCP protocol with:
 - Resource listing and reading with proper format
 - Prompt listing and retrieving with proper format
 - Standard error codes (-32601 for method not found)
+- Detailed request/response logging to ~/.mcpt/logs/mock.log
 
 Available types:
 - tool <name> <description>
@@ -848,7 +849,7 @@ Available types:
 Example: 
   mcp mock tool hello_world "when user says hello world, run this tool"
   mcp mock tool hello_world "A greeting tool" \
-         prompt welcome "A welcome prompt" "Hello {{name}}, welcome to the system!" \
+         prompt welcome "A welcome prompt" "Hello {{name}}, welcome to {{location}}!" \
          resource docs:readme "Documentation" "# Mock MCP Server\nThis is a mock server"`,
 		Args: cobra.MinimumNArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
