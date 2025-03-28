@@ -223,6 +223,100 @@ mcp mock prompt greeting "Greeting template" "Hello {{name}}! Welcome to {{locat
 
 When a client requests the prompt, it can provide values for these arguments which will be substituted in the response.
 
+## Proxy Mode
+
+The proxy mode allows you to register shell scripts as MCP tools and proxy MCP requests to them.
+The scripts will receive tool parameters as environment variables.
+
+### Registering a Tool
+
+To register a shell script as an MCP tool:
+
+```bash
+mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./examples/add.sh
+```
+
+This registers a tool named `add_operation` with the description "Adds a and b" and parameters `a` and `b` of type `int`.
+When the tool is called, the parameters will be passed as environment variables to the script.
+
+Parameters are specified in the format `name:type,name:type,...` where `type` can be `string`, `int`, `float`, or `bool`.
+
+### Starting the Proxy Server
+
+To start a proxy server with the registered tools:
+
+```bash
+mcp proxy start
+```
+
+The server will run in stdio mode compatible with the MCP protocol and forward tool call requests to the registered shell scripts.
+
+### Example Shell Scripts
+
+#### Adding Numbers
+
+```bash
+#!/bin/bash
+
+# Get the values from environment variables
+if [ -z "$a" ] || [ -z "$b" ]; then
+  echo "Error: Missing required parameters 'a' or 'b'"
+  exit 1
+fi
+
+# Try to convert to integers
+a_val=$(($a))
+b_val=$(($b))
+
+# Perform the addition
+result=$(($a_val + $b_val))
+
+# Return the result
+echo "The sum of $a and $b is $result"
+```
+
+#### Customized Greeting
+
+```bash
+#!/bin/bash
+
+# Get the values from environment variables
+if [ -z "$name" ]; then
+  echo "Error: Missing required parameter 'name'"
+  exit 1
+fi
+
+# Set default values if not provided
+if [ -z "$greeting" ]; then
+  greeting="Hello"
+fi
+
+if [ -z "$formal" ]; then
+  formal=false
+fi
+
+# Customize greeting based on formal flag
+if [ "$formal" = "true" ]; then
+  title="Mr./Ms."
+  message="${greeting}, ${title} ${name}. How may I assist you today?"
+else
+  message="${greeting}, ${name}! Nice to meet you!"
+fi
+
+# Return the greeting
+echo "$message"
+```
+
+Register with:
+
+```bash
+mcp proxy tool greet "Greets a user" "name:string,greeting:string,formal:bool" ./examples/greet.sh
+```
+
+### Configuration
+
+Tools are registered in `~/.mcpt/proxy_config.json`. The proxy server logs all requests and responses to `~/.mcpt/logs/proxy.log`.
+
 ## Examples
 
 List tools from a filesystem server:
@@ -250,6 +344,47 @@ Creating a mock server for testing:
 mcp mock tool file_reader "Reads files" \
       prompt code_review "Code review prompt" "Please review this {{language}} code: {{code}}" \
       resource docs://api "API Documentation" "# API Reference\n\nThis document describes the API."
+```
+
+Using the proxy mode with a simple shell script:
+
+```bash
+# 1. Create a simple shell script for addition
+cat > add.sh << 'EOF'
+#!/bin/bash
+# Get values from environment variables
+if [ -z "$a" ] || [ -z "$b" ]; then
+  echo "Error: Missing required parameters 'a' or 'b'"
+  exit 1
+fi
+result=$(($a + $b))
+echo "The sum of $a and $b is $result"
+EOF
+
+# 2. Make it executable
+chmod +x add.sh
+
+# 3. Register it as an MCP tool
+mcp proxy tool add_numbers "Adds two numbers" "a:int,b:int" ./add.sh
+
+# 4. In one terminal, start the proxy server
+mcp proxy start
+
+# 5. In another terminal, you can call it as an MCP tool
+mcp call add_numbers --params '{"a":5,"b":3}' --format pretty
+```
+
+Tailing the logs to debug your proxy or mock server:
+
+```bash
+# For the mock server logs
+tail -f ~/.mcpt/logs/mock.log
+
+# For the proxy server logs
+tail -f ~/.mcpt/logs/proxy.log
+
+# To watch all logs in real-time (on macOS/Linux)
+find ~/.mcpt/logs -name "*.log" -exec tail -f {} \;
 ```
 
 ## Contributing
