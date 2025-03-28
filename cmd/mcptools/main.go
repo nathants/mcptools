@@ -687,7 +687,7 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 
 					params := map[string]any{}
 					for ii := 1; ii < len(commandArgs); ii++ {
-						if commandArgs[ii] == flagParams || commandArgs[i] == flagParamsShort {
+						if commandArgs[ii] == flagParams || commandArgs[ii] == flagParamsShort {
 							if ii+1 < len(commandArgs) {
 								if jsonErr := json.Unmarshal([]byte(commandArgs[ii+1]), &params); jsonErr != nil {
 									fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", jsonErr)
