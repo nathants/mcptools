@@ -13,8 +13,9 @@ Thank you for considering contributing to MCPTools! This document provides guide
 1. No need to pre-install Go - the setup process will automatically install it if needed
 2. Run `make setup` to set up the development environment (this will check/install Go and set up everything else)
 3. Make your changes
-4. Run tests using `make test`
-5. Run the linter using `make lint`
+4. Test your local changes by running `make build` first, then `./bin/mcp [command]`
+5. Run tests using `make test`
+6. Run the linter using `make lint`
 
 ## Pull Request Process
 
