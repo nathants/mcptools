@@ -11,6 +11,7 @@ A command-line interface for interacting with MCP (Model Context Protocol) serve
 ## Table of Contents
 
 - [Overview](#overview)
+- [Difference Between the MCP Inspector and MCP Tools](https://blog.fka.dev/blog/2025-03-27-mcp-inspector-vs-mcp-tools/)
 - [Installation](#installation)
   - [Using Homebrew](#using-homebrew)
   - [From Source](#from-source)
