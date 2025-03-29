@@ -23,8 +23,7 @@ import (
 
 // version information placeholders.
 var (
-	Version   = "dev"
-	BuildTime = "unknown"
+	Version = "dev"
 )
 
 // flags.
@@ -106,7 +105,7 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print the version information",
 		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Printf("MCP version %s (built at %s)\n", Version, BuildTime)
+			fmt.Printf("MCP Tools version %s\n", Version)
 		},
 	}
 }
@@ -543,8 +542,8 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			fmt.Println("mcp tools shell")
-			fmt.Println("connected to:", strings.Join(parsedArgs, " "))
+			fmt.Printf("mcp > MCP Tools Shell (%s)\n", Version)
+			fmt.Println("mcp > Connected to Server:", strings.Join(parsedArgs, " "))
 			fmt.Println("\nmcp > Type '/h' for help or '/q' to quit")
 
 			line := liner.NewLiner()

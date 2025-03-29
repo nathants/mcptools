@@ -141,23 +141,30 @@ MCP Tools supports three output formats to accommodate different needs:
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
-The default format displays tools in a colorized man-page style:
+The default format now displays tools in a colorized man-page style:
 
 ```
-read_file(path:string, [limit:integer], [offset:integer])
+read_file(path:str, [limit:int], [offset:int])
      Reads a file from the filesystem
 
-list_dir(path:string)
+list_dir(path:str)
      Lists directory contents
 
-get_file_info(path:string)
-     Gets file metadata
+grep_search(pattern:str, [excludePatterns:str[]])
+     Search files with pattern
+
+edit_file(edits:{newText:str,oldText:str}[], path:str)
+     Edit a file with multiple text replacements
 ```
 
 Key features of the format:
 - Function names are displayed in bold cyan
-- Required parameters are shown in green (e.g., `path:string`)
-- Optional parameters are shown in yellow brackets (e.g., `[limit:integer]`)
+- Required parameters are shown in green (e.g., `path:str`)
+- Optional parameters are shown in yellow brackets (e.g., `[limit:int]`)
+- Array types are indicated with `[]` suffix (e.g., `str[]`)
+- Object types show their properties in curly braces (e.g., `{prop1:type1,prop2:type2}`)
+- Nested objects are displayed recursively (e.g., `{notifications:{enabled:bool,sound:bool}}`)
+- Type names are shortened for readability (e.g., `str` instead of `string`, `int` instead of `integer`)
 - Descriptions are indented and displayed in gray
 - Parameter order is consistent, with required parameters listed first
 
@@ -229,15 +236,25 @@ connected to: npx -y @modelcontextprotocol/server-filesystem /Users/fka
 
 mcp > Type '/h' for help or '/q' to quit
 mcp > tools
-read_file(path:string, [limit:integer], [offset:integer])
+read_file(path:str, [limit:int], [offset:int])
      Reads a file from the filesystem
 
-list_dir(path:string)
+list_dir(path:str)
      Lists directory contents
+
+grep_search(pattern:str, [excludePatterns:str[]])
+     Search files with pattern
+
+edit_file(edits:{newText:str,oldText:str}[], path:str)
+     Edit a file with multiple text replacements
 
 # Direct tool calling is supported
 mcp > read_file {"path": "README.md"}
 ...content of README.md...
+
+# Calling a tool with complex object parameters
+mcp > edit_file {"path": "main.go", "edits": [{"oldText": "foo", "newText": "bar"}]}
+...result of edit operation...
 
 # Get help
 mcp > /h
@@ -313,9 +330,12 @@ Running `mcp tools localhost:3000` with the proxy server will show the registere
 ```
 add_operation(a:int, b:int)
      Adds a and b
+
+count_files(dir:str, [include:str[]])
+     Counts files in a directory with optional filters
 ```
 
-This new format clearly shows what parameters each tool accepts, making it easier to understand how to use them.
+This new format clearly shows what parameters each tool accepts, making it easier to understand how to use them. Arrays are denoted with `[]` suffix (e.g., `str[]`), and type names are shortened for better readability.
 
 #### How It Works
 
@@ -327,10 +347,29 @@ This new format clearly shows what parameters each tool accepts, making it easie
 #### Parameter Types
 
 Parameters are specified in the format `name:type,name:type,...` where `type` can be:
-- `string`: Text values
-- `int`: Integer numbers
-- `float`: Floating-point numbers
+- `str`: Text values (displayed as `str` instead of `string`)
+- `int`: Integer numbers (displayed as `int` instead of `integer`)
+- `num`: Floating-point numbers (displayed as `num` instead of `number`)
 - `bool`: Boolean values (true/false)
+- `obj`: Object types with nested properties in curly braces (e.g., `{prop1:str,prop2:int}`)
+- `str[]`, `int[]`, etc.: Array types indicated with `[]` suffix
+- `{...}[]`: Object arrays with detailed property information
+
+For arrays, you can specify them as comma-separated values in the JSON payload:
+```json
+{"excludePatterns": ["*.log", "tmp/*"], "pattern": "error"}
+```
+
+For object arrays, each object can have its own set of properties:
+```json
+{
+  "path": "main.go",
+  "edits": [
+    {"oldText": "foo", "newText": "bar"},
+    {"oldText": "hello", "newText": "world"}
+  ]
+}
+```
 
 #### Example Scripts and Commands
 

@@ -276,12 +276,167 @@ func TestToolListManFormat(t *testing.T) {
 	fmt.Println("Formatted Tools List:")
 	fmt.Println(result)
 
+	// Verify the expected format is present with shortened type names
+	expectedSubstrings := []string{
+		"get_file_info(path:str)",
+		"     Retrieve detailed metadata",
+		"read_file(path:str, [limit:int], [offset:int])",
+		"     Read the contents",
+	}
+
+	for _, expected := range expectedSubstrings {
+		if !containsSubstring(result, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't", expected)
+		}
+	}
+}
+
+func TestToolListWithArrayParams(t *testing.T) {
+	// Create a mock tools list with array parameters
+	tools := []interface{}{
+		map[string]interface{}{
+			"name":        "grep_search",
+			"description": "Search files for a pattern",
+			"inputSchema": map[string]interface{}{
+				"properties": map[string]interface{}{
+					"pattern": map[string]interface{}{
+						"type": "string",
+					},
+					"excludePatterns": map[string]interface{}{
+						"type": "array",
+						"items": map[string]interface{}{
+							"type": "string",
+						},
+					},
+					"maxResults": map[string]interface{}{
+						"type": "integer",
+					},
+					"caseSensitive": map[string]interface{}{
+						"type": "boolean",
+					},
+				},
+				"required": []interface{}{"pattern"},
+			},
+		},
+		map[string]interface{}{
+			"name":        "list_users",
+			"description": "List all users with their roles",
+			"inputSchema": map[string]interface{}{
+				"properties": map[string]interface{}{
+					"roles": map[string]interface{}{
+						"type": "array",
+						"items": map[string]interface{}{
+							"type": "string",
+						},
+					},
+					"active": map[string]interface{}{
+						"type": "boolean",
+					},
+				},
+				"required": []interface{}{},
+			},
+		},
+	}
+
+	// Format the tools list
+	result, err := formatToolsList(tools)
+	if err != nil {
+		t.Fatalf("Failed to format tools list: %v", err)
+	}
+
+	// Print the result for manual verification
+	fmt.Println("Formatted Tools List with Array Parameters:")
+	fmt.Println(result)
+
 	// Verify the expected format is present
 	expectedSubstrings := []string{
-		"get_file_info(path:string)",
-		"     Retrieve detailed metadata",
-		"read_file(path:string, [limit:integer], [offset:integer])",
-		"     Read the contents",
+		"grep_search(pattern:str, [caseSensitive:bool], [excludePatterns:str[]], [maxResults:int])",
+		"list_users([active:bool], [roles:str[]])",
+	}
+
+	for _, expected := range expectedSubstrings {
+		if !containsSubstring(result, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't", expected)
+		}
+	}
+}
+
+func TestToolListWithNestedObjectParams(t *testing.T) {
+	// Create a mock tools list with nested object parameters
+	tools := []interface{}{
+		map[string]interface{}{
+			"name":        "edit_file",
+			"description": "Edit a file with multiple text replacements",
+			"inputSchema": map[string]interface{}{
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{
+						"type": "string",
+					},
+					"edits": map[string]interface{}{
+						"type": "array",
+						"items": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"oldText": map[string]interface{}{
+									"type":        "string",
+									"description": "Text to search for - must match exactly",
+								},
+								"newText": map[string]interface{}{
+									"type":        "string",
+									"description": "Text to replace with",
+								},
+							},
+							"required": []interface{}{"oldText", "newText"},
+						},
+					},
+				},
+				"required": []interface{}{"path", "edits"},
+			},
+		},
+		map[string]interface{}{
+			"name":        "configure_settings",
+			"description": "Configure application settings",
+			"inputSchema": map[string]interface{}{
+				"properties": map[string]interface{}{
+					"settings": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"theme": map[string]interface{}{
+								"type": "string",
+							},
+							"notifications": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"enabled": map[string]interface{}{
+										"type": "boolean",
+									},
+									"sound": map[string]interface{}{
+										"type": "boolean",
+									},
+								},
+							},
+						},
+					},
+				},
+				"required": []interface{}{},
+			},
+		},
+	}
+
+	// Format the tools list
+	result, err := formatToolsList(tools)
+	if err != nil {
+		t.Fatalf("Failed to format tools list: %v", err)
+	}
+
+	// Print the result for manual verification
+	fmt.Println("Formatted Tools List with Nested Object Parameters:")
+	fmt.Println(result)
+
+	// Verify the expected format is present
+	expectedSubstrings := []string{
+		"edit_file(edits:{newText:str,oldText:str}[], path:str)",
+		"configure_settings([settings:{notifications:{enabled:bool,sound:bool},theme:str}])",
 	}
 
 	for _, expected := range expectedSubstrings {
@@ -293,4 +448,11 @@ func TestToolListManFormat(t *testing.T) {
 
 func containsSubstring(s, substr string) bool {
 	return strings.Contains(s, substr)
+}
+
+// Checks if a string has a specified type name (accounting for both full and shortened versions)
+func hasTypeName(s, typeName string) bool {
+	fullPattern := typeName + "\""
+	shortPattern := shortenTypeName(typeName) + "\""
+	return strings.Contains(s, fullPattern) || strings.Contains(s, shortPattern)
 }
