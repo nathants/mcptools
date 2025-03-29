@@ -6,7 +6,7 @@
 
 A command-line interface for interacting with MCP (Model Context Protocol) servers.
 
-[![Blog Post](https://img.shields.io/badge/Blog-Read%20about%20MCP%20Tools-blue)](https://blog.fka.dev/blog/2025-03-26-introducing-mcp-tools-cli/)
+[![Blog Post](https://img.shields.io/badge/Blog-Read%20about%20MCP%20Tools-blue)](https://blog.fka.dev/blog/2025-03-27-mcp-inspector-vs-mcp-tools/)
 
 ## Table of Contents
 
