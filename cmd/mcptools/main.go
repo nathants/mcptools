@@ -850,7 +850,7 @@ Available types:
 - prompt <name> <description> <template>
 - resource <uri> <description> <content>
 
-Example: 
+Example:
   mcp mock tool hello_world "when user says hello world, run this tool"
   mcp mock tool hello_world "A greeting tool" \
          prompt welcome "A welcome prompt" "Hello {{name}}, welcome to {{location}}!" \
@@ -1113,7 +1113,7 @@ Example:
 			}
 
 			// Run proxy server
-			fmt.Println("Starting proxy server...")
+			fmt.Fprintln(os.Stderr, "Starting proxy server...")
 			if err := proxy.RunProxyServer(config); err != nil {
 				log.Fatalf("Error running proxy server: %v", err)
 			}

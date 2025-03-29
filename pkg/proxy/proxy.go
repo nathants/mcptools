@@ -319,9 +319,9 @@ func (s *Server) Start() error {
 		if err := decoder.Decode(&request); err != nil {
 			if err == io.EOF {
 				s.log("Client disconnected (EOF)")
-			} else {
-				s.log(fmt.Sprintf("Error decoding request: %v", err))
+				return nil
 			}
+			s.log(fmt.Sprintf("Error decoding request: %v", err))
 			fmt.Fprintf(os.Stderr, "Error decoding request: %v\n", err)
 			return fmt.Errorf("error decoding request: %w", err)
 		}
@@ -568,9 +568,9 @@ func RunProxyServer(toolConfigs map[string]map[string]string) error {
 	}
 
 	// Print registered tools
-	fmt.Println("Registered proxy tools:")
+	fmt.Fprintln(os.Stderr, "Registered proxy tools:")
 	for name, tool := range server.tools {
-		fmt.Printf("- %s: %s (script: %s)\n", name, tool.Description, tool.ScriptPath)
+		fmt.Fprintf(os.Stderr, "- %s: %s (script: %s)\n", name, tool.Description, tool.ScriptPath)
 		paramStr := ""
 		for i, param := range tool.Parameters {
 			if i > 0 {
@@ -579,7 +579,7 @@ func RunProxyServer(toolConfigs map[string]map[string]string) error {
 			paramStr += param.Name + ":" + param.Type
 		}
 		if paramStr != "" {
-			fmt.Printf("  Parameters: %s\n", paramStr)
+			fmt.Fprintf(os.Stderr, "  Parameters: %s\n", paramStr)
 		}
 	}
 
