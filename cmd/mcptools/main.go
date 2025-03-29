@@ -50,6 +50,20 @@ var (
 	errCommandRequired = fmt.Errorf("command to execute is required when using stdio transport")
 )
 
+// createClientFunc is the function used to create MCP clients.
+// This can be replaced in tests to use a mock transport.
+var createClientFunc = func(args []string) (*client.Client, error) {
+	if len(args) == 0 {
+		return nil, errCommandRequired
+	}
+
+	if len(args) == 1 && (strings.HasPrefix(args[0], "http://") || strings.HasPrefix(args[0], "https://")) {
+		return client.NewHTTP(args[0]), nil
+	}
+
+	return client.NewStdio(args), nil
+}
+
 func main() {
 	cobra.EnableCommandSorting = false
 
@@ -95,18 +109,6 @@ func newVersionCmd() *cobra.Command {
 			fmt.Printf("MCP version %s (built at %s)\n", Version, BuildTime)
 		},
 	}
-}
-
-func createClient(args []string) (*client.Client, error) {
-	if len(args) == 0 {
-		return nil, errCommandRequired
-	}
-
-	if len(args) == 1 && (strings.HasPrefix(args[0], "http://") || strings.HasPrefix(args[0], "https://")) {
-		return client.NewHTTP(args[0]), nil
-	}
-
-	return client.NewStdio(args), nil
 }
 
 func processFlags(args []string) []string {
@@ -155,7 +157,7 @@ func newToolsCmd() *cobra.Command {
 
 			parsedArgs := processFlags(args)
 
-			mcpClient, err := createClient(parsedArgs)
+			mcpClient, err := createClientFunc(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Example: mcp tools npx -y @modelcontextprotocol/server-filesystem ~\n")
@@ -185,7 +187,7 @@ func newResourcesCmd() *cobra.Command {
 
 			parsedArgs := processFlags(args)
 
-			mcpClient, err := createClient(parsedArgs)
+			mcpClient, err := createClientFunc(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Example: mcp resources npx -y @modelcontextprotocol/server-filesystem ~\n")
@@ -215,7 +217,7 @@ func newPromptsCmd() *cobra.Command {
 
 			parsedArgs := processFlags(args)
 
-			mcpClient, err := createClient(parsedArgs)
+			mcpClient, err := createClientFunc(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~\n")
@@ -311,7 +313,7 @@ func newCallCmd() *cobra.Command {
 				}
 			}
 
-			mcpClient, clientErr := createClient(parsedArgs)
+			mcpClient, clientErr := createClientFunc(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
@@ -403,7 +405,7 @@ func newGetPromptCmd() *cobra.Command {
 				}
 			}
 
-			mcpClient, clientErr := createClient(parsedArgs)
+			mcpClient, clientErr := createClientFunc(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
@@ -481,7 +483,7 @@ func newReadResourceCmd() *cobra.Command {
 				}
 			}
 
-			mcpClient, clientErr := createClient(parsedArgs)
+			mcpClient, clientErr := createClientFunc(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
@@ -529,7 +531,7 @@ func newShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			mcpClient, clientErr := createClient(parsedArgs)
+			mcpClient, clientErr := createClientFunc(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
@@ -1040,9 +1042,47 @@ Example with script:
   mcp proxy tool add_operation "Adds a and b" "a:int,b:int" ./add.sh
 
 Example with inline command:
-  mcp proxy tool add_op "Adds given numbers" "a:int,b:int" -e "echo \"total is $a + $b = ${$a+$b}\""`,
-		Args: cobra.RangeArgs(3, 4),
+  mcp proxy tool add_op "Adds given numbers" "a:int,b:int" -e "echo \"total is $a + $b = ${$a+$b}\""
+
+To unregister a tool, use the --unregister flag:
+  mcp proxy tool --unregister tool_name`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			unregister, _ := cmd.Flags().GetBool("unregister")
+			if unregister {
+				if len(args) != 1 {
+					return fmt.Errorf("unregister requires exactly one argument: the tool name")
+				}
+				return nil
+			}
+			return cobra.RangeArgs(3, 4)(cmd, args)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			unregister, _ := cmd.Flags().GetBool("unregister")
+			if unregister {
+				name := args[0]
+				// Load existing config
+				config, loadErr := loadProxyConfig()
+				if loadErr != nil {
+					return fmt.Errorf("error loading config: %w", loadErr)
+				}
+
+				// Check if tool exists
+				if _, exists := config[name]; !exists {
+					return fmt.Errorf("tool %s not found", name)
+				}
+
+				// Remove the tool from config
+				delete(config, name)
+
+				// Save updated config
+				if saveErr := saveProxyConfig(config); saveErr != nil {
+					return fmt.Errorf("error saving config: %w", saveErr)
+				}
+
+				fmt.Printf("Unregistered tool: %s\n", name)
+				return nil
+			}
+
 			name := args[0]
 			description := args[1]
 			parameters := args[2]
@@ -1084,6 +1124,7 @@ Example with inline command:
 	}
 
 	cmd.Flags().StringP("execute", "e", "", "Inline command to execute instead of a script file")
+	cmd.Flags().Bool("unregister", false, "Unregister a tool")
 	return cmd
 }
 

@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/transport"
 )
 
@@ -92,38 +95,6 @@ func (t *MockTransport) Execute(method string, params interface{}) (map[string]i
 
 	return map[string]interface{}{}, fmt.Errorf("unknown method: %s", method)
 }
-
-// func setupTestCommand() (*cobra.Command, *bytes.Buffer) {
-// 	outBuf := &bytes.Buffer{}
-//
-// 	rootCmd := &cobra.Command{
-// 		Use:   "mcp",
-// 		Short: "MCP CLI",
-// 	}
-//
-// 	shellCmd := &cobra.Command{
-// 		Use:   "shell",
-// 		Short: "Interactive shell",
-// 		Run: func(cmd *cobra.Command, args []string) {
-// 			mockTransport := NewMockTransport()
-//
-// 			shell := &Shell{
-// 				Transport: mockTransport,
-// 				Format:    "table",
-// 				Reader: strings.NewReader(
-// 					"tools\ncall test_tool --params '{\"foo\":\"bar\"}'\ntest_tool {\"foo\":\"bar\"}\nresource:test_resource\nprompt:test_prompt\n/q\n",
-// 				),
-// 				Writer: outBuf,
-// 			}
-//
-// 			shell.Run()
-// 		},
-// 	}
-//
-// 	rootCmd.AddCommand(shellCmd)
-//
-// 	return rootCmd, outBuf
-// }
 
 type Shell struct {
 	Transport transport.Transport
@@ -346,5 +317,221 @@ func TestExecuteShell(t *testing.T) {
 		if !strings.Contains(output, expected) {
 			t.Errorf("Expected output to contain %q, but it doesn't.\nFull output: %s", expected, output)
 		}
+	}
+}
+
+func TestProxyToolRegistration(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	os.Setenv("HOME", tmpDir)
+
+	// Test cases
+	testCases := []struct {
+		name        string
+		args        []string
+		expectError bool
+	}{
+		{
+			name: "register with script",
+			args: []string{
+				"add_numbers",
+				"Adds two numbers",
+				"a:int,b:int",
+				filepath.Join(tmpDir, "add.sh"),
+			},
+			expectError: false,
+		},
+		{
+			name: "register with inline command",
+			args: []string{
+				"add_op",
+				"Adds given numbers",
+				"a:int,b:int",
+				"-e",
+				"echo \"$a + $b = $(($a+$b))\"",
+			},
+			expectError: false,
+		},
+		{
+			name: "register without script or command",
+			args: []string{
+				"invalid",
+				"Invalid tool",
+				"x:int",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := proxyToolCmd()
+			err := cmd.RunE(cmd, tc.args)
+
+			if tc.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			// Verify the tool was registered in the config
+			config, err := loadProxyConfig()
+			if err != nil {
+				t.Fatalf("Error loading config: %v", err)
+			}
+
+			toolName := tc.args[0]
+			if _, exists := config[toolName]; !exists {
+				t.Errorf("Tool %s was not registered in config", toolName)
+			}
+		})
+	}
+}
+
+func TestProxyToolUnregistration(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	os.Setenv("HOME", tmpDir)
+
+	// First register a tool
+	cmd := proxyToolCmd()
+	err := cmd.RunE(cmd, []string{
+		"test_tool",
+		"Test tool",
+		"x:int",
+		"-e",
+		"echo $x",
+	})
+	if err != nil {
+		t.Fatalf("Error registering tool: %v", err)
+	}
+
+	// Now try to unregister it
+	cmd.Flags().Set("unregister", "true")
+	err = cmd.RunE(cmd, []string{"test_tool"})
+	if err != nil {
+		t.Errorf("Error unregistering tool: %v", err)
+	}
+
+	// Verify the tool was removed from the config
+	config, err := loadProxyConfig()
+	if err != nil {
+		t.Fatalf("Error loading config: %v", err)
+	}
+
+	if _, exists := config["test_tool"]; exists {
+		t.Error("Tool was not unregistered from config")
+	}
+}
+
+// testCreateClient is a test-specific version of createClient that always returns a client with our mock transport
+var testCreateClient func(args []string) (*client.Client, error)
+
+func TestShellCommands(t *testing.T) {
+	// Create a mock server for testing
+	mockServer := NewMockTransport()
+	mockServer.Responses = map[string]map[string]interface{}{
+		"tools/list": {
+			"tools": []map[string]interface{}{
+				{
+					"name":        "test_tool",
+					"description": "A test tool",
+				},
+			},
+		},
+		"tools/call": {
+			"result": "Called test_tool",
+		},
+		"resources/list": {
+			"resources": []map[string]interface{}{
+				{
+					"uri":         "test_resource",
+					"description": "A test resource",
+				},
+			},
+		},
+		"resources/read": {
+			"content": "Resource content",
+		},
+		"prompts/list": {
+			"prompts": []map[string]interface{}{
+				{
+					"name":        "test_prompt",
+					"description": "A test prompt",
+				},
+			},
+		},
+		"prompts/get": {
+			"content": "Prompt content",
+		},
+	}
+
+	// Test cases
+	testCases := []struct {
+		name           string
+		input          string
+		expectedOutput string
+	}{
+		{
+			name:           "list tools",
+			input:          "tools\n/q\n",
+			expectedOutput: "test_tool",
+		},
+		{
+			name:           "list resources",
+			input:          "resources\n/q\n",
+			expectedOutput: "test_resource",
+		},
+		{
+			name:           "list prompts",
+			input:          "prompts\n/q\n",
+			expectedOutput: "test_prompt",
+		},
+		{
+			name:           "call tool with params",
+			input:          "call test_tool --params {\"foo\":\"bar\"}\n/q\n",
+			expectedOutput: "Called test_tool",
+		},
+		{
+			name:           "direct tool call",
+			input:          "test_tool {\"foo\":\"bar\"}\n/q\n",
+			expectedOutput: "Called test_tool",
+		},
+		{
+			name:           "read resource",
+			input:          "resource:test_resource\n/q\n",
+			expectedOutput: "Resource content",
+		},
+		{
+			name:           "get prompt",
+			input:          "prompt:test_prompt\n/q\n",
+			expectedOutput: "Prompt content",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			outBuf := &bytes.Buffer{}
+
+			shell := &Shell{
+				Transport: mockServer,
+				Format:    "table",
+				Reader:    strings.NewReader(tc.input),
+				Writer:    outBuf,
+			}
+
+			shell.Run()
+
+			output := outBuf.String()
+			if !strings.Contains(output, tc.expectedOutput) {
+				t.Errorf("Expected output to contain %q, got: %s", tc.expectedOutput, output)
+			}
+		})
 	}
 }
