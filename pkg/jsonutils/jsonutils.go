@@ -16,6 +16,24 @@ import (
 	"golang.org/x/term"
 )
 
+// ANSI color codes for terminal output
+const (
+	ColorReset  = "\033[0m"
+	ColorBold   = "\033[1m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorPurple = "\033[35m"
+	ColorCyan   = "\033[36m"
+	ColorGray   = "\033[37m"
+)
+
+// isTerminal determines if stdout is a terminal (for colorized output)
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
+}
+
 // OutputFormat represents the available output format options.
 type OutputFormat string
 
@@ -111,7 +129,7 @@ func formatTable(data any) (string, error) {
 	return formatGenericMap(mapVal)
 }
 
-// formatToolsList formats a list of tools as a table.
+// formatToolsList formats a list of tools as a man-like page.
 func formatToolsList(tools any) (string, error) {
 	toolsSlice, ok := tools.([]any)
 	if !ok {
@@ -123,20 +141,12 @@ func formatToolsList(tools any) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.StripEscape)
-
-	fmt.Fprintln(w, "NAME\tDESCRIPTION")
-	fmt.Fprintln(w, "----\t-----------")
-
 	termWidth := getTermWidth()
-	nameColWidth := 20                           // Default name column width
-	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
+	descIndent := "     " // 5 spaces for description indentation
+	descWidth := termWidth - len(descIndent)
+	useColors := isTerminal()
 
-	if descColWidth < 10 {
-		descColWidth = max(10, termWidth-nameColWidth-5) // Adaptive minimum width
-	}
-
-	for _, t := range toolsSlice {
+	for i, t := range toolsSlice {
 		tool, ok1 := t.(map[string]any)
 		if !ok1 {
 			continue
@@ -145,30 +155,198 @@ func formatToolsList(tools any) (string, error) {
 		name, _ := tool["name"].(string)
 		desc, _ := tool["description"].(string)
 
-		// Handle multiline description
-		lines := wrapText(desc, descColWidth)
+		// Format name with parameters if available
+		displayName := name
+		hasParams := false
 
-		if len(lines) == 0 {
-			fmt.Fprintf(w, "%s\t\n", name)
-			continue
+		// Check for inputSchema (new format)
+		if inputSchema, hasSchema := tool["inputSchema"]; hasSchema && inputSchema != nil {
+			paramsStr := formatParameters(inputSchema)
+			if paramsStr != "" {
+				displayName = formatToolNameWithParams(name, paramsStr, useColors)
+				hasParams = true
+			}
 		}
 
-		// First line with name
-		fmt.Fprintf(w, "%s\t%s\n", name, lines[0])
-
-		// Remaining lines with empty name column
-		for _, line := range lines[1:] {
-			fmt.Fprintf(w, "\t%s\n", line)
+		// Fallback to old format if no params found yet
+		if !hasParams {
+			if params, hasParamsField := tool["parameters"]; hasParamsField && params != nil {
+				paramsStr := formatParameters(params)
+				if paramsStr != "" {
+					displayName = formatToolNameWithParams(name, paramsStr, useColors)
+					hasParams = true
+				}
+			}
 		}
 
-		// Add a blank line between entries
-		if len(lines) > 1 {
-			fmt.Fprintln(w, "\t")
+		// If no parameters were found or they were empty, just color the name
+		if !hasParams && useColors {
+			displayName = fmt.Sprintf("%s%s%s", ColorBold+ColorCyan, name, ColorReset)
+		}
+
+		// Write the name with parameters
+		fmt.Fprintln(&buf, displayName)
+
+		// Write the indented description
+		if desc != "" {
+			lines := wrapText(desc, descWidth)
+			for _, line := range lines {
+				if useColors {
+					fmt.Fprintf(&buf, "%s%s%s%s\n", descIndent, ColorGray, line, ColorReset)
+				} else {
+					fmt.Fprintf(&buf, "%s%s\n", descIndent, line)
+				}
+			}
+		}
+
+		// Add blank line between tools, but not after the last one
+		if i < len(toolsSlice)-1 {
+			fmt.Fprintln(&buf)
 		}
 	}
 
-	_ = w.Flush()
 	return buf.String(), nil
+}
+
+// formatToolNameWithParams formats a tool name with parameters, adding colors if enabled
+func formatToolNameWithParams(name, params string, useColors bool) string {
+	if !useColors {
+		return fmt.Sprintf("%s(%s)", name, params)
+	}
+
+	// Parse parameters to add colors to required and optional params
+	coloredParams := params
+	coloredParams = strings.ReplaceAll(coloredParams, "[", ColorYellow+"[")
+	coloredParams = strings.ReplaceAll(coloredParams, "]", "]"+ColorReset+ColorGreen)
+
+	// Add any final reset if needed
+	if strings.HasSuffix(coloredParams, ColorGreen) {
+		coloredParams += ColorReset
+	}
+
+	// Return the full colored string
+	return fmt.Sprintf("%s%s%s(%s%s%s)",
+		ColorBold+ColorCyan, name, ColorReset,
+		ColorGreen, coloredParams, ColorReset)
+}
+
+// formatParameters formats the parameters for display in the tool name
+func formatParameters(params any) string {
+	// Handle case where we have an inputSchema structure
+	if inputSchema, ok := params.(map[string]any); ok {
+		// Check if this is the JSON Schema structure
+		if properties, hasProps := inputSchema["properties"]; hasProps && properties != nil {
+			propsMap, ok := properties.(map[string]any)
+			if !ok {
+				return ""
+			}
+
+			// Get required parameters
+			var requiredParams []string
+			if required, hasRequired := inputSchema["required"]; hasRequired && required != nil {
+				if reqArray, ok := required.([]any); ok {
+					for _, r := range reqArray {
+						if reqStr, ok := r.(string); ok {
+							requiredParams = append(requiredParams, reqStr)
+						}
+					}
+				}
+			}
+
+			// Get all parameter names and sort them for consistent output
+			var paramNames []string
+			for name := range propsMap {
+				paramNames = append(paramNames, name)
+			}
+
+			// Sort parameter names
+			sort.Strings(paramNames)
+
+			// Format parameters, putting required ones first
+			var requiredParamStrs []string
+			var optionalParamStrs []string
+
+			for _, paramName := range paramNames {
+				propDef, _ := propsMap[paramName]
+				propDefMap, ok := propDef.(map[string]any)
+				if !ok {
+					continue
+				}
+
+				paramType, _ := propDefMap["type"].(string)
+
+				// Check if this parameter is required
+				isRequired := false
+				for _, req := range requiredParams {
+					if req == paramName {
+						isRequired = true
+						break
+					}
+				}
+
+				if isRequired {
+					requiredParamStrs = append(requiredParamStrs, fmt.Sprintf("%s:%s", paramName, paramType))
+				} else {
+					optionalParamStrs = append(optionalParamStrs, fmt.Sprintf("[%s:%s]", paramName, paramType))
+				}
+			}
+
+			// Join all parameters, required first, then optional
+			var allParamStrs []string
+			allParamStrs = append(allParamStrs, requiredParamStrs...)
+			allParamStrs = append(allParamStrs, optionalParamStrs...)
+
+			return strings.Join(allParamStrs, ", ")
+		}
+	}
+
+	// Original function for other parameter formats
+	switch p := params.(type) {
+	case string:
+		// If parameters is already a string (e.g., "param1:type1,param2:type2")
+		// Add spaces after commas if they don't exist
+		if !strings.Contains(p, ", ") && strings.Contains(p, ",") {
+			return strings.ReplaceAll(p, ",", ", ")
+		}
+		return p
+	case []any:
+		// If parameters is an array of parameter objects
+		var paramStrs []string
+		for _, param := range p {
+			if paramObj, ok := param.(map[string]any); ok {
+				name, _ := paramObj["name"].(string)
+				paramType, _ := paramObj["type"].(string)
+				if name != "" {
+					if paramType != "" {
+						paramStrs = append(paramStrs, fmt.Sprintf("%s:%s", name, paramType))
+					} else {
+						paramStrs = append(paramStrs, name)
+					}
+				}
+			}
+		}
+		return strings.Join(paramStrs, ", ")
+	case map[string]any:
+		// If parameters is a map of parameter definitions
+		var paramNames []string
+		for name := range p {
+			paramNames = append(paramNames, name)
+		}
+		sort.Strings(paramNames)
+
+		var paramStrs []string
+		for _, name := range paramNames {
+			paramType := p[name]
+			if typeStr, ok := paramType.(string); ok {
+				paramStrs = append(paramStrs, fmt.Sprintf("%s:%s", name, typeStr))
+			} else {
+				paramStrs = append(paramStrs, name)
+			}
+		}
+		return strings.Join(paramStrs, ", ")
+	default:
+		return ""
+	}
 }
 
 // getTermWidth returns the terminal width or a default value if detection fails.
@@ -228,8 +406,17 @@ func formatResourcesList(resources any) (string, error) {
 
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	useColors := isTerminal()
 
-	fmt.Fprintln(w, "NAME\tTYPE\tURI")
+	if useColors {
+		fmt.Fprintf(w, "%s%sNAME%s\t%sTYPE%s\t%sURI%s\n",
+			ColorBold, ColorCyan, ColorReset,
+			ColorCyan, ColorReset,
+			ColorCyan, ColorReset)
+	} else {
+		fmt.Fprintln(w, "NAME\tTYPE\tURI")
+	}
+
 	fmt.Fprintln(w, "----\t----\t---")
 
 	for _, r := range resourcesSlice {
@@ -243,7 +430,14 @@ func formatResourcesList(resources any) (string, error) {
 		uri, _ := resource["uri"].(string)
 
 		// Use the entire URI instead of truncating
-		fmt.Fprintf(w, "%s\t%s\t%s\n", name, resType, uri)
+		if useColors {
+			fmt.Fprintf(w, "%s%s%s\t%s%s\t%s%s%s\n",
+				ColorGreen, name, ColorReset,
+				resType, ColorReset,
+				ColorYellow, uri, ColorReset)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", name, resType, uri)
+		}
 	}
 
 	_ = w.Flush()
@@ -262,20 +456,12 @@ func formatPromptsList(prompts any) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', tabwriter.StripEscape)
-
-	fmt.Fprintln(w, "NAME\tDESCRIPTION")
-	fmt.Fprintln(w, "----\t-----------")
-
 	termWidth := getTermWidth()
-	nameColWidth := 20                           // Default name column width
-	descColWidth := termWidth - nameColWidth - 5 // Leave some margin
+	descIndent := "     " // 5 spaces for description indentation
+	descWidth := termWidth - len(descIndent)
+	useColors := isTerminal()
 
-	if descColWidth < 10 {
-		descColWidth = 40 // Minimum width if terminal is too narrow
-	}
-
-	for _, p := range promptsSlice {
+	for i, p := range promptsSlice {
 		prompt, ok1 := p.(map[string]any)
 		if !ok1 {
 			continue
@@ -284,29 +470,31 @@ func formatPromptsList(prompts any) (string, error) {
 		name, _ := prompt["name"].(string)
 		desc, _ := prompt["description"].(string)
 
-		// Handle multiline description
-		lines := wrapText(desc, descColWidth)
-
-		if len(lines) == 0 {
-			fmt.Fprintf(w, "%s\t\n", name)
-			continue
+		// Write the prompt name
+		if useColors {
+			fmt.Fprintf(&buf, "%s%s%s\n", ColorBold+ColorCyan, name, ColorReset)
+		} else {
+			fmt.Fprintln(&buf, name)
 		}
 
-		// First line with name
-		fmt.Fprintf(w, "%s\t%s\n", name, lines[0])
-
-		// Remaining lines with empty name column
-		for _, line := range lines[1:] {
-			fmt.Fprintf(w, "\t%s\n", line)
+		// Write the indented description
+		if desc != "" {
+			lines := wrapText(desc, descWidth)
+			for _, line := range lines {
+				if useColors {
+					fmt.Fprintf(&buf, "%s%s%s%s\n", descIndent, ColorGray, line, ColorReset)
+				} else {
+					fmt.Fprintf(&buf, "%s%s\n", descIndent, line)
+				}
+			}
 		}
 
-		// Add a blank line between entries
-		if len(lines) > 1 {
-			fmt.Fprintln(w, "\t")
+		// Add blank line between prompts, but not after the last one
+		if i < len(promptsSlice)-1 {
+			fmt.Fprintln(&buf)
 		}
 	}
 
-	_ = w.Flush()
 	return buf.String(), nil
 }
 
@@ -317,6 +505,7 @@ func formatContent(content any) (string, error) {
 	}
 
 	var buf strings.Builder
+	useColors := isTerminal()
 
 	for _, c := range contentSlice {
 		contentItem, ok1 := c.(map[string]any)
@@ -329,11 +518,24 @@ func formatContent(content any) (string, error) {
 		switch contentType {
 		case "text":
 			text, _ := contentItem["text"].(string)
-			buf.WriteString(text)
+			if useColors {
+				buf.WriteString(ColorGray + text + ColorReset)
+			} else {
+				buf.WriteString(text)
+			}
 		case "image":
-			buf.WriteString("[IMAGE CONTENT]\n")
+			if useColors {
+				buf.WriteString(ColorYellow + "[IMAGE CONTENT]" + ColorReset + "\n")
+			} else {
+				buf.WriteString("[IMAGE CONTENT]\n")
+			}
 		default:
-			buf.WriteString(fmt.Sprintf("[%s CONTENT]\n", strings.ToUpper(contentType)))
+			if useColors {
+				buf.WriteString(fmt.Sprintf("%s[%s CONTENT]%s\n",
+					ColorYellow, strings.ToUpper(contentType), ColorReset))
+			} else {
+				buf.WriteString(fmt.Sprintf("[%s CONTENT]\n", strings.ToUpper(contentType)))
+			}
 		}
 	}
 
@@ -347,8 +549,16 @@ func formatGenericMap(data map[string]any) (string, error) {
 
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	useColors := isTerminal()
 
-	fmt.Fprintln(w, "KEY\tVALUE")
+	if useColors {
+		fmt.Fprintf(w, "%s%sKEY%s\t%sVALUE%s\n",
+			ColorBold, ColorCyan, ColorReset,
+			ColorCyan, ColorReset)
+	} else {
+		fmt.Fprintln(w, "KEY\tVALUE")
+	}
+
 	fmt.Fprintln(w, "---\t-----")
 
 	keys := make([]string, 0, len(data))
@@ -378,7 +588,13 @@ func formatGenericMap(data map[string]any) (string, error) {
 			}
 		}
 
-		fmt.Fprintf(w, "%s\t%s\n", k, valueStr)
+		if useColors {
+			fmt.Fprintf(w, "%s%s%s\t%s%s%s\n",
+				ColorGreen, k, ColorReset,
+				ColorYellow, valueStr, ColorReset)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\n", k, valueStr)
+		}
 	}
 
 	_ = w.Flush()

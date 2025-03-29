@@ -141,14 +141,25 @@ MCP Tools supports three output formats to accommodate different needs:
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
-Output:
+The default format displays tools in a colorized man-page style:
+
 ```
-NAME        DESCRIPTION
-----        -----------
-read_file   Reads a file from the filesystem
-list_dir    Lists directory contents
-...
+read_file(path:string, [limit:integer], [offset:integer])
+     Reads a file from the filesystem
+
+list_dir(path:string)
+     Lists directory contents
+
+get_file_info(path:string)
+     Gets file metadata
 ```
+
+Key features of the format:
+- Function names are displayed in bold cyan
+- Required parameters are shown in green (e.g., `path:string`)
+- Optional parameters are shown in yellow brackets (e.g., `[limit:integer]`)
+- Descriptions are indented and displayed in gray
+- Parameter order is consistent, with required parameters listed first
 
 #### JSON Format (Compact)
 
@@ -218,10 +229,11 @@ connected to: npx -y @modelcontextprotocol/server-filesystem /Users/fka
 
 mcp > Type '/h' for help or '/q' to quit
 mcp > tools
-NAME        DESCRIPTION
-----        -----------
-read_file   Reads a file from the filesystem
-...
+read_file(path:string, [limit:integer], [offset:integer])
+     Reads a file from the filesystem
+
+list_dir(path:string)
+     Lists directory contents
 
 # Direct tool calling is supported
 mcp > read_file {"path": "README.md"}
@@ -295,6 +307,15 @@ mcp proxy tool --unregister add_operation
 # Start the proxy server
 mcp proxy start
 ```
+
+Running `mcp tools localhost:3000` with the proxy server will show the registered tools with their parameters:
+
+```
+add_operation(a:int, b:int)
+     Adds a and b
+```
+
+This new format clearly shows what parameters each tool accepts, making it easier to understand how to use them.
 
 #### How It Works
 

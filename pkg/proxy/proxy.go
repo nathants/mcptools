@@ -570,7 +570,9 @@ func RunProxyServer(toolConfigs map[string]map[string]string) error {
 	// Print registered tools
 	fmt.Fprintln(os.Stderr, "Registered proxy tools:")
 	for name, tool := range server.tools {
-		fmt.Fprintf(os.Stderr, "- %s: %s (script: %s)\n", name, tool.Description, tool.ScriptPath)
+		fmt.Fprintf(os.Stderr, "- %s: %s (%s: %s)\n", name, tool.Description,
+			map[bool]string{true: "script", false: "command"}[tool.ScriptPath != ""],
+			map[bool]string{true: tool.ScriptPath, false: tool.Command}[tool.ScriptPath != ""])
 		paramStr := ""
 		for i, param := range tool.Parameters {
 			if i > 0 {

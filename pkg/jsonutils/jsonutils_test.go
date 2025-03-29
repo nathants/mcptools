@@ -1,6 +1,7 @@
 package jsonutils
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -192,7 +193,7 @@ func TestParseFormat(t *testing.T) {
 	}
 }
 
-// TestToolsListFormatting tests the table formatting for tools list.
+// TestToolsListFormatting tests the man-like formatting for tools list.
 func TestToolsListFormatting(t *testing.T) {
 	tools := []any{
 		map[string]any{
@@ -216,10 +217,6 @@ func TestToolsListFormatting(t *testing.T) {
 	}
 
 	// Basic verification
-	if !strings.Contains(output, "NAME") || !strings.Contains(output, "DESCRIPTION") {
-		t.Errorf("Missing table headers in output: %s", output)
-	}
-
 	if !strings.Contains(output, "tool1") || !strings.Contains(output, "tool2") {
 		t.Errorf("Missing tool names in output: %s", output)
 	}
@@ -227,4 +224,73 @@ func TestToolsListFormatting(t *testing.T) {
 	if !strings.Contains(output, "This is a short description") {
 		t.Errorf("Missing tool description in output: %s", output)
 	}
+
+	// Check for man-like format
+	if !strings.Contains(output, "     This is") {
+		t.Errorf("Missing indented description in output: %s", output)
+	}
+}
+
+func TestToolListManFormat(t *testing.T) {
+	// Create a mock tools list
+	tools := []interface{}{
+		map[string]interface{}{
+			"name":        "get_file_info",
+			"description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type.",
+			"inputSchema": map[string]interface{}{
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{
+						"type": "string",
+					},
+				},
+				"required": []interface{}{"path"},
+			},
+		},
+		map[string]interface{}{
+			"name":        "read_file",
+			"description": "Read the contents of a file at the specified path.",
+			"inputSchema": map[string]interface{}{
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{
+						"type": "string",
+					},
+					"offset": map[string]interface{}{
+						"type": "integer",
+					},
+					"limit": map[string]interface{}{
+						"type": "integer",
+					},
+				},
+				"required": []interface{}{"path"},
+			},
+		},
+	}
+
+	// Format the tools list
+	result, err := formatToolsList(tools)
+	if err != nil {
+		t.Fatalf("Failed to format tools list: %v", err)
+	}
+
+	// Print the result for manual verification
+	fmt.Println("Formatted Tools List:")
+	fmt.Println(result)
+
+	// Verify the expected format is present
+	expectedSubstrings := []string{
+		"get_file_info(path:string)",
+		"     Retrieve detailed metadata",
+		"read_file(path:string, [limit:integer], [offset:integer])",
+		"     Read the contents",
+	}
+
+	for _, expected := range expectedSubstrings {
+		if !containsSubstring(result, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't", expected)
+		}
+	}
+}
+
+func containsSubstring(s, substr string) bool {
+	return strings.Contains(s, substr)
 }
