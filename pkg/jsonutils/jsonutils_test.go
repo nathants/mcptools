@@ -456,3 +456,58 @@ func hasTypeName(s, typeName string) bool {
 	shortPattern := shortenTypeName(typeName) + "\""
 	return strings.Contains(s, fullPattern) || strings.Contains(s, shortPattern)
 }
+
+// TestNormalizeParameterType tests the type name normalization functionality
+func TestNormalizeParameterType(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		// String type variations
+		{"string", "string"},
+		{"str", "string"},
+		{"text", "string"},
+		{"char", "string"},
+		{"varchar", "string"},
+		{"STR", "string"},  // Test case insensitivity
+		{"Text", "string"}, // Test mixed case
+
+		// Integer type variations
+		{"int", "int"},
+		{"integer", "int"},
+		{"long", "int"},
+		{"short", "int"},
+		{"byte", "int"},
+		{"bigint", "int"},
+		{"smallint", "int"},
+		{"INTEGER", "int"}, // Test case insensitivity
+
+		// Float type variations
+		{"float", "float"},
+		{"double", "float"},
+		{"decimal", "float"},
+		{"number", "float"},
+		{"real", "float"},
+
+		// Boolean type variations
+		{"bool", "bool"},
+		{"boolean", "bool"},
+		{"bit", "bool"},
+		{"flag", "bool"},
+		{"BOOLEAN", "bool"}, // Test case insensitivity
+
+		// Edge cases
+		{"", ""},                         // Empty string
+		{"unknown_type", "unknown_type"}, // Unknown type
+		{"array", "array"},               // Type that doesn't need normalization
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			result := NormalizeParameterType(tc.input)
+			if result != tc.expected {
+				t.Errorf("NormalizeParameterType(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}

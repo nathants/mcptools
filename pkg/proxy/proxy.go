@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/f/mcptools/pkg/jsonutils"
 )
 
 // Parameter represents a tool parameter with a name and type.
@@ -173,15 +175,18 @@ func parseParameters(paramStr string) ([]Parameter, error) {
 			return nil, fmt.Errorf("parameter name cannot be empty")
 		}
 
+		// Normalize parameter type
+		normalizedType := jsonutils.NormalizeParameterType(paramType)
+
 		// Validate parameter type
 		validTypes := map[string]bool{"string": true, "int": true, "float": true, "bool": true}
-		if !validTypes[paramType] {
+		if !validTypes[normalizedType] {
 			return nil, fmt.Errorf("invalid parameter type: %s, supported types: string, int, float, bool", paramType)
 		}
 
 		parameters = append(parameters, Parameter{
 			Name: name,
-			Type: paramType,
+			Type: normalizedType,
 		})
 	}
 

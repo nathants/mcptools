@@ -782,3 +782,43 @@ func formatGenericMap(data map[string]any) (string, error) {
 	_ = w.Flush()
 	return buf.String(), nil
 }
+
+// NormalizeParameterType converts common type names to their canonical form.
+// This is used to accept alternative type names (like "str" for "string").
+func NormalizeParameterType(typeName string) string {
+	typeName = strings.ToLower(typeName)
+
+	// Map of alternative type names to canonical forms
+	typeMap := map[string]string{
+		// String types
+		"str":     "string",
+		"text":    "string",
+		"char":    "string",
+		"varchar": "string",
+
+		// Integer types
+		"integer":  "int",
+		"long":     "int",
+		"short":    "int",
+		"byte":     "int",
+		"bigint":   "int",
+		"smallint": "int",
+
+		// Float types
+		"double":  "float",
+		"decimal": "float",
+		"number":  "float",
+		"real":    "float",
+
+		// Boolean types
+		"boolean": "bool",
+		"bit":     "bool",
+		"flag":    "bool",
+	}
+
+	if canonical, exists := typeMap[typeName]; exists {
+		return canonical
+	}
+
+	return typeName
+}
