@@ -345,33 +345,6 @@ This new format clearly shows what parameters each tool accepts, making it easie
 3. When a tool is called, parameters are passed as environment variables to the script/command
 4. The script/command's output is returned as the tool response
 
-#### Parameter Types
-
-Parameters are specified in the format `name:type,name:type,...` where `type` can be:
-- `str`: Text values (displayed as `str` instead of `string`)
-- `int`: Integer numbers (displayed as `int` instead of `integer`)
-- `num`: Floating-point numbers (displayed as `num` instead of `number`)
-- `bool`: Boolean values (true/false)
-- `obj`: Object types with nested properties in curly braces (e.g., `{prop1:str,prop2:int}`)
-- `str[]`, `int[]`, etc.: Array types indicated with `[]` suffix
-- `{...}[]`: Object arrays with detailed property information
-
-For arrays, you can specify them as comma-separated values in the JSON payload:
-```json
-{"excludePatterns": ["*.log", "tmp/*"], "pattern": "error"}
-```
-
-For object arrays, each object can have its own set of properties:
-```json
-{
-  "path": "main.go",
-  "edits": [
-    {"oldText": "foo", "newText": "bar"},
-    {"oldText": "hello", "newText": "world"}
-  ]
-}
-```
-
 #### Example Scripts and Commands
 
 **Adding Numbers (add.sh):**
