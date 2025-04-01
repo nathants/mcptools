@@ -91,6 +91,7 @@ Usage:
   mcp [command]
   
 Available Commands:
+  alias          Manage MCP server aliases
   call           Call a tool, resource, or prompt on the MCP server
   help           Help about any command
   mock           Create a mock MCP server with tools, prompts, and resources
@@ -269,6 +270,27 @@ Special Commands:
   /h, /help                  Show this help
   /q, /quit, exit            Exit the shell
 ```
+
+## Server Aliases
+
+MCP Tools allows you to save and reuse server commands with friendly aliases:
+
+```bash
+# Add a new server alias
+mcp alias add myfs npx -y @modelcontextprotocol/server-filesystem ~/
+
+# List all registered server aliases
+mcp alias list
+
+# Remove a server alias
+mcp alias remove myfs
+
+# Use an alias with any MCP command
+mcp tools myfs
+mcp call read_file --params '{"path": "README.md"}' myfs
+```
+
+Server aliases are stored in `$HOME/.mcpt/aliases.json` and provide a convenient way to work with commonly used MCP servers without typing long commands repeatedly.
 
 ## Server Modes
 
