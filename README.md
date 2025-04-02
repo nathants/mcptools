@@ -21,6 +21,7 @@ A command-line interface for interacting with MCP (Model Context Protocol) serve
   - [Output Formats](#output-formats)
   - [Commands](#commands)
   - [Interactive Shell](#interactive-shell)
+- [Server Aliases](#server-aliases)
 - [Server Modes](#server-modes)
   - [Mock Server Mode](#mock-server-mode)
   - [Proxy Mode](#proxy-mode)
