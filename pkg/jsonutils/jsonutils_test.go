@@ -450,14 +450,7 @@ func containsSubstring(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
 
-// Checks if a string has a specified type name (accounting for both full and shortened versions)
-func hasTypeName(s, typeName string) bool {
-	fullPattern := typeName + "\""
-	shortPattern := shortenTypeName(typeName) + "\""
-	return strings.Contains(s, fullPattern) || strings.Contains(s, shortPattern)
-}
-
-// TestNormalizeParameterType tests the type name normalization functionality
+// TestNormalizeParameterType tests the type name normalization functionality.
 func TestNormalizeParameterType(t *testing.T) {
 	testCases := []struct {
 		input    string
