@@ -16,7 +16,7 @@ import (
 	"golang.org/x/term"
 )
 
-// ANSI color codes for terminal output
+// ANSI color codes for terminal output.
 const (
 	ColorReset  = "\033[0m"
 	ColorBold   = "\033[1m"
@@ -29,7 +29,15 @@ const (
 	ColorGray   = "\033[37m"
 )
 
-// isTerminal determines if stdout is a terminal (for colorized output)
+const (
+	typeObject      = "object"
+	typeArray       = "array"
+	typeAny         = "any"
+	shortTypeObject = "obj"
+	shortTypeArray  = "arr"
+)
+
+// isTerminal determines if stdout is a terminal (for colorized output).
 func isTerminal() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
@@ -208,7 +216,7 @@ func formatToolsList(tools any) (string, error) {
 	return buf.String(), nil
 }
 
-// formatToolNameWithParams formats a tool name with parameters, adding colors if enabled
+// formatToolNameWithParams formats a tool name with parameters, adding colors if enabled.
 func formatToolNameWithParams(name, params string, useColors bool) string {
 	if !useColors {
 		return fmt.Sprintf("%s(%s)", name, params)
@@ -230,7 +238,7 @@ func formatToolNameWithParams(name, params string, useColors bool) string {
 		ColorGreen, coloredParams, ColorReset)
 }
 
-// Shortens type names for display
+// Shortens type names for display.
 func shortenTypeName(typeName string) string {
 	switch typeName {
 	case "string":
@@ -241,8 +249,8 @@ func shortenTypeName(typeName string) string {
 		return "bool"
 	case "number":
 		return "num"
-	case "object":
-		return "obj"
+	case typeObject:
+		return shortTypeObject
 	default:
 		// If it's already 3 letters or less, return as is
 		if len(typeName) <= 3 {
@@ -253,13 +261,13 @@ func shortenTypeName(typeName string) string {
 	}
 }
 
-// formatObjectProperties formats object properties recursively
-func formatObjectProperties(propMap map[string]any, requiredProps []string) string {
+// formatObjectProperties formats object properties recursively.
+func formatObjectProperties(propMap map[string]any) string {
 	if len(propMap) == 0 {
-		return "obj"
+		return shortTypeObject
 	}
 
-	// Get all property names and sort them for consistent output
+	// Get all property names and sort them for consistent output.
 	var propNames []string
 	for name := range propMap {
 		propNames = append(propNames, name)
@@ -276,48 +284,49 @@ func formatObjectProperties(propMap map[string]any, requiredProps []string) stri
 		propType, _ := propDef["type"].(string)
 
 		// Handle nested objects
-		if propType == "object" {
+		switch propType {
+		case typeObject:
 			var nestedRequired []string
 			if req, hasReq := propDef["required"]; hasReq && req != nil {
-				if reqArray, ok := req.([]any); ok {
+				if reqArray, isReqArray := req.([]any); isReqArray {
 					for _, r := range reqArray {
-						if reqStr, ok := r.(string); ok {
-							nestedRequired = append(nestedRequired, reqStr)
+						if reqStr, isReqStr := r.(string); isReqStr {
+							_ = append(nestedRequired, reqStr)
 						}
 					}
 				}
 			}
 
 			if properties, hasProps := propDef["properties"]; hasProps && properties != nil {
-				if propsMap, ok := properties.(map[string]any); ok {
-					propType = formatObjectProperties(propsMap, nestedRequired)
+				if propsMap, isPropsMap := properties.(map[string]any); isPropsMap {
+					propType = formatObjectProperties(propsMap)
 				}
 			} else {
-				propType = "obj"
+				propType = shortTypeObject
 			}
-		} else if propType == "array" {
+		case typeArray:
 			// Handle array types
 			if items, hasItems := propDef["items"]; hasItems && items != nil {
-				if itemsMap, ok := items.(map[string]any); ok {
+				if itemsMap, isItemsMap := items.(map[string]any); isItemsMap {
 					itemType, hasType := itemsMap["type"]
 					if hasType {
-						if itemTypeStr, ok := itemType.(string); ok {
-							if itemTypeStr == "object" {
+						if itemTypeStr, isItemTypeStr := itemType.(string); isItemTypeStr {
+							if itemTypeStr == typeObject {
 								// Handle array of objects
 								var nestedRequired []string
 								if req, hasReq := itemsMap["required"]; hasReq && req != nil {
-									if reqArray, ok := req.([]any); ok {
+									if reqArray, isReqArray := req.([]any); isReqArray {
 										for _, r := range reqArray {
-											if reqStr, ok := r.(string); ok {
-												nestedRequired = append(nestedRequired, reqStr)
+											if reqStr, isReqStr := r.(string); isReqStr {
+												_ = append(nestedRequired, reqStr)
 											}
 										}
 									}
 								}
 
 								if properties, hasProps := itemsMap["properties"]; hasProps && properties != nil {
-									if propsMap, ok := properties.(map[string]any); ok {
-										propType = formatObjectProperties(propsMap, nestedRequired) + "[]"
+									if propsMap, isPropsMap := properties.(map[string]any); isPropsMap {
+										propType = formatObjectProperties(propsMap) + "[]"
 									}
 								} else {
 									propType = "obj[]"
@@ -332,7 +341,8 @@ func formatObjectProperties(propMap map[string]any, requiredProps []string) stri
 			} else {
 				propType = "arr"
 			}
-		} else {
+
+		default:
 			// Regular types
 			propType = shortenTypeName(propType)
 		}
@@ -343,142 +353,164 @@ func formatObjectProperties(propMap map[string]any, requiredProps []string) stri
 	return "{" + strings.Join(props, ",") + "}"
 }
 
-// formatParameters formats the parameters for display in the tool name
+// formatParameters formats the parameters for display in the tool name.
 func formatParameters(params any) string {
 	// Handle case where we have an inputSchema structure
 	if inputSchema, ok := params.(map[string]any); ok {
 		// Check if this is the JSON Schema structure
-		if properties, hasProps := inputSchema["properties"]; hasProps && properties != nil {
-			propsMap, ok := properties.(map[string]any)
-			if !ok {
-				return ""
-			}
-
-			// Get required parameters
-			var requiredParams []string
-			if required, hasRequired := inputSchema["required"]; hasRequired && required != nil {
-				if reqArray, ok := required.([]any); ok {
-					for _, r := range reqArray {
-						if reqStr, ok := r.(string); ok {
-							requiredParams = append(requiredParams, reqStr)
-						}
-					}
-				}
-			}
-
-			// Get all parameter names and sort them for consistent output
-			var paramNames []string
-			for name := range propsMap {
-				paramNames = append(paramNames, name)
-			}
-
-			// Sort parameter names
-			sort.Strings(paramNames)
-
-			// Format parameters, putting required ones first
-			var requiredParamStrs []string
-			var optionalParamStrs []string
-
-			for _, paramName := range paramNames {
-				propDef, _ := propsMap[paramName]
-				propDefMap, ok := propDef.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				paramType, _ := propDefMap["type"].(string)
-
-				// Handle object types
-				if paramType == "object" {
-					// Get nested required fields
-					var nestedRequired []string
-					if req, hasReq := propDefMap["required"]; hasReq && req != nil {
-						if reqArray, ok := req.([]any); ok {
-							for _, r := range reqArray {
-								if reqStr, ok := r.(string); ok {
-									nestedRequired = append(nestedRequired, reqStr)
-								}
-							}
-						}
-					}
-
-					// Format object properties
-					if properties, hasProps := propDefMap["properties"]; hasProps && properties != nil {
-						if propsMap, ok := properties.(map[string]any); ok {
-							paramType = formatObjectProperties(propsMap, nestedRequired)
-						}
-					} else {
-						paramType = "obj"
-					}
-				} else if paramType == "array" {
-					// Handle array types
-					if items, hasItems := propDefMap["items"]; hasItems && items != nil {
-						if itemsMap, ok := items.(map[string]any); ok {
-							itemType, hasType := itemsMap["type"]
-							if hasType {
-								if itemTypeStr, ok := itemType.(string); ok {
-									if itemTypeStr == "object" {
-										// Handle array of objects
-										var nestedRequired []string
-										if req, hasReq := itemsMap["required"]; hasReq && req != nil {
-											if reqArray, ok := req.([]any); ok {
-												for _, r := range reqArray {
-													if reqStr, ok := r.(string); ok {
-														nestedRequired = append(nestedRequired, reqStr)
-													}
-												}
-											}
-										}
-
-										if properties, hasProps := itemsMap["properties"]; hasProps && properties != nil {
-											if propsMap, ok := properties.(map[string]any); ok {
-												paramType = formatObjectProperties(propsMap, nestedRequired) + "[]"
-											}
-										} else {
-											paramType = "obj[]"
-										}
-									} else {
-										// Simple array
-										paramType = shortenTypeName(itemTypeStr) + "[]"
-									}
-								}
-							}
-						}
-					} else {
-						// If no item type is specified, just use "array"
-						paramType = "arr"
-					}
-				} else {
-					// Shorten non-array type names
-					paramType = shortenTypeName(paramType)
-				}
-
-				// Check if this parameter is required
-				isRequired := false
-				for _, req := range requiredParams {
-					if req == paramName {
-						isRequired = true
-						break
-					}
-				}
-
-				if isRequired {
-					requiredParamStrs = append(requiredParamStrs, fmt.Sprintf("%s:%s", paramName, paramType))
-				} else {
-					optionalParamStrs = append(optionalParamStrs, fmt.Sprintf("[%s:%s]", paramName, paramType))
-				}
-			}
-
-			// Join all parameters, required first, then optional
-			var allParamStrs []string
-			allParamStrs = append(allParamStrs, requiredParamStrs...)
-			allParamStrs = append(allParamStrs, optionalParamStrs...)
-
-			return strings.Join(allParamStrs, ", ")
+		if inputProps, hasInputProps := inputSchema["properties"]; hasInputProps && inputProps != nil {
+			return formatInputSchema(inputSchema)
 		}
 	}
 
-	// Original function for other parameter formats
+	// Call the legacy format handler for other parameter formats
+	return formatLegacyParameters(params)
+}
+
+// formatInputSchema formats parameters from a JSON Schema structure.
+func formatInputSchema(inputSchema map[string]any) string {
+	inputProps := inputSchema["properties"]
+	inputPropsMap, isInputPropsMap := inputProps.(map[string]any)
+	if !isInputPropsMap {
+		return ""
+	}
+
+	// Get required parameters
+	var requiredParams []string
+	if required, hasRequired := inputSchema["required"]; hasRequired && required != nil {
+		if reqArray, isReqArray := required.([]any); isReqArray {
+			for _, r := range reqArray {
+				if reqStr, isReqStr := r.(string); isReqStr {
+					requiredParams = append(requiredParams, reqStr)
+				}
+			}
+		}
+	}
+
+	// Get all parameter names and sort them for consistent output
+	var paramNames []string
+	for name := range inputPropsMap {
+		paramNames = append(paramNames, name)
+	}
+
+	// Sort parameter names
+	sort.Strings(paramNames)
+
+	// Format parameters, putting required ones first
+	var requiredParamStrs []string
+	var optionalParamStrs []string
+
+	for _, paramName := range paramNames {
+		propDef := inputPropsMap[paramName]
+		propDefMap, isPropDefMap := propDef.(map[string]any)
+		if !isPropDefMap {
+			continue
+		}
+
+		paramType, _ := propDefMap["type"].(string)
+
+		// Handle object types
+		switch paramType {
+		case "object":
+			// Get nested required fields
+			var nestedRequired []string
+			if req, hasReq := propDefMap["required"]; hasReq && req != nil {
+				if reqArray, isReqArray := req.([]any); isReqArray {
+					for _, r := range reqArray {
+						if reqStr, isReqStr := r.(string); isReqStr {
+							_ = append(nestedRequired, reqStr)
+						}
+					}
+				}
+			}
+
+			// Format object properties
+			if properties, hasProps := propDefMap["properties"]; hasProps && properties != nil {
+				if propsMap, isPropsMap := properties.(map[string]any); isPropsMap {
+					paramType = formatObjectProperties(propsMap)
+				}
+			} else {
+				paramType = "obj"
+			}
+		case "array":
+			paramType = formatArrayType(propDefMap)
+		default:
+			paramType = shortenTypeName(paramType)
+		}
+
+		// Check if this parameter is required
+		isRequired := false
+		for _, req := range requiredParams {
+			if req == paramName {
+				isRequired = true
+				break
+			}
+		}
+
+		if isRequired {
+			requiredParamStrs = append(requiredParamStrs, fmt.Sprintf("%s:%s", paramName, paramType))
+		} else {
+			optionalParamStrs = append(optionalParamStrs, fmt.Sprintf("[%s:%s]", paramName, paramType))
+		}
+	}
+
+	// Join all parameters, required first, then optional
+	var allParamStrs []string
+	allParamStrs = append(allParamStrs, requiredParamStrs...)
+	allParamStrs = append(allParamStrs, optionalParamStrs...)
+
+	return strings.Join(allParamStrs, ", ")
+}
+
+// formatArrayType handles the formatting of array type parameters.
+func formatArrayType(propDefMap map[string]any) string {
+	items, hasItems := propDefMap["items"]
+	if !hasItems || items == nil {
+		return shortTypeArray
+	}
+
+	itemsMap, isItemsMap := items.(map[string]any)
+	if !isItemsMap {
+		return shortTypeArray
+	}
+
+	itemType, hasType := itemsMap["type"]
+	if !hasType {
+		return shortTypeArray
+	}
+
+	itemTypeStr, isItemTypeStr := itemType.(string)
+	if !isItemTypeStr {
+		return shortTypeArray
+	}
+
+	if itemTypeStr == "object" {
+		// Handle array of objects
+		var nestedRequired []string
+		if req, hasReq := itemsMap["required"]; hasReq && req != nil {
+			if reqArray, isReqArray := req.([]any); isReqArray {
+				for _, r := range reqArray {
+					if reqStr, isReqStr := r.(string); isReqStr {
+						_ = append(nestedRequired, reqStr)
+					}
+				}
+			}
+		}
+
+		if properties, hasProps := itemsMap["properties"]; hasProps && properties != nil {
+			if propsMap, isPropsMap := properties.(map[string]any); isPropsMap {
+				return formatObjectProperties(propsMap) + "[]"
+			}
+		}
+		return "obj[]"
+	}
+
+	// Simple array
+	return shortenTypeName(itemTypeStr) + "[]"
+}
+
+// formatLegacyParameters handles the legacy parameter formats.
+func formatLegacyParameters(params any) string {
 	switch p := params.(type) {
 	case string:
 		// If parameters is already a string (e.g., "param1:type1,param2:type2")

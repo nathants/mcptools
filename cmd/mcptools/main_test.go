@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/transport"
 )
 
@@ -323,7 +322,9 @@ func TestExecuteShell(t *testing.T) {
 func TestProxyToolRegistration(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
-	os.Setenv("HOME", tmpDir)
+	if err := os.Setenv("HOME", tmpDir); err != nil {
+		t.Fatalf("Failed to set HOME environment variable: %v", err)
+	}
 
 	// Test cases
 	testCases := []struct {
@@ -397,7 +398,9 @@ func TestProxyToolRegistration(t *testing.T) {
 func TestProxyToolUnregistration(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
-	os.Setenv("HOME", tmpDir)
+	if err := os.Setenv("HOME", tmpDir); err != nil {
+		t.Fatalf("Failed to set HOME environment variable: %v", err)
+	}
 
 	// First register a tool
 	cmd := proxyToolCmd()
@@ -413,7 +416,9 @@ func TestProxyToolUnregistration(t *testing.T) {
 	}
 
 	// Now try to unregister it
-	cmd.Flags().Set("unregister", "true")
+	if setErr := cmd.Flags().Set("unregister", "true"); setErr != nil {
+		t.Fatalf("Failed to set unregister flag: %v", setErr)
+	}
 	err = cmd.RunE(cmd, []string{"test_tool"})
 	if err != nil {
 		t.Errorf("Error unregistering tool: %v", err)
@@ -429,9 +434,6 @@ func TestProxyToolUnregistration(t *testing.T) {
 		t.Error("Tool was not unregistered from config")
 	}
 }
-
-// testCreateClient is a test-specific version of createClient that always returns a client with our mock transport
-var testCreateClient func(args []string) (*client.Client, error)
 
 func TestShellCommands(t *testing.T) {
 	// Create a mock server for testing
