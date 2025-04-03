@@ -96,6 +96,7 @@ func main() {
 		newMockCmd(),
 		proxyCmd(),
 		aliasCmd(),
+		newNewCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -1282,10 +1283,19 @@ func aliasListCmd() *cobra.Command {
 
 func aliasRemoveCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "remove [alias]",
+		Use:   "remove <name>",
 		Short: "Remove an MCP server alias",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		Long: `Remove a registered alias for an MCP server command.
+
+Example:
+  mcp alias remove myfs`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(thisCmd *cobra.Command, args []string) error {
+			if len(args) == 1 && (args[0] == flagHelp || args[0] == flagHelpShort) {
+				_ = thisCmd.Help()
+				return nil
+			}
+
 			aliasName := args[0]
 
 			aliases, err := alias.Load()
@@ -1294,7 +1304,7 @@ func aliasRemoveCmd() *cobra.Command {
 			}
 
 			if _, exists := aliases[aliasName]; !exists {
-				return fmt.Errorf("alias '%s' not found", aliasName)
+				return fmt.Errorf("alias '%s' does not exist", aliasName)
 			}
 
 			delete(aliases, aliasName)

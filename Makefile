@@ -22,6 +22,11 @@ build:
 	@echo "$(YELLOW)Building $(BINARY_NAME)...$(NC)"
 	go build -ldflags "-X main.Version=$(VERSION)" -o bin/$(BINARY_NAME) ./cmd/mcptools
 
+# Install templates
+templates:
+	mkdir -p $(HOME)/.mcputils/templates
+	cp -r templates/* $(HOME)/.mcputils/templates/
+
 test: check-go
 	@echo "$(YELLOW)Running tests...$(NC)"
 	go test -v ./...
@@ -29,3 +34,11 @@ test: check-go
 lint: check-go
 	@echo "$(BLUE)Running linter...$(NC)"
 	golangci-lint run ./...
+
+dist:
+	mkdir -p dist
+
+clean:
+	rm -rf bin/* dist/*
+
+release: clean lint test build
