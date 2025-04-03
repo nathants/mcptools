@@ -319,6 +319,8 @@ Project templates are stored in either:
 - User's home directory: `~/.mcputils/templates/`
 - Next to the MCP Tools executable
 
+When installing via Homebrew, templates are automatically installed to your home directory. But if you use source install, you need to run `make install-templates`.
+
 ## Server Aliases
 
 MCP Tools allows you to save and reuse server commands with friendly aliases:
