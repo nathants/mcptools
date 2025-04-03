@@ -21,6 +21,7 @@ A command-line interface for interacting with MCP (Model Context Protocol) serve
   - [Output Formats](#output-formats)
   - [Commands](#commands)
   - [Interactive Shell](#interactive-shell)
+  - [Project Scaffolding](#project-scaffolding)
 - [Server Aliases](#server-aliases)
 - [Server Modes](#server-modes)
   - [Mock Server Mode](#mock-server-mode)
@@ -42,6 +43,7 @@ MCP Tools provides a versatile CLI for working with Model Context Protocol (MCP)
 - Create mock servers for testing client applications
 - Proxy MCP requests to shell scripts for easy extensibility
 - Create interactive shells for exploring and using MCP servers
+- Scaffold new MCP projects with TypeScript support
 - Format output in various styles (JSON, pretty-printed, table)
 - Support all transport methods (HTTP, stdio)
 
@@ -96,6 +98,7 @@ Available Commands:
   call           Call a tool, resource, or prompt on the MCP server
   help           Help about any command
   mock           Create a mock MCP server with tools, prompts, and resources
+  new            Create a new MCP project from templates
   proxy          Proxy MCP tool requests to shell scripts
   prompts        List available prompts on the MCP server
   resources      List available resources on the MCP server
@@ -271,6 +274,50 @@ Special Commands:
   /h, /help                  Show this help
   /q, /quit, exit            Exit the shell
 ```
+
+### Project Scaffolding
+
+MCP Tools provides a scaffolding feature to quickly create new MCP servers with TypeScript:
+
+```bash
+mkdir my-mcp-server
+cd my-mcp-server
+
+# Create a project with specific components
+mcp new tool:calculate resource:file prompt:greet
+
+# Create a project with a specific SDK (currently only TypeScript/ts supported)
+mcp new tool:calculate --sdk=ts
+
+# Create a project with a specific transport type
+mcp new tool:calculate --transport=stdio
+mcp new tool:calculate --transport=sse
+```
+
+The scaffolding creates a complete project structure with:
+
+- Server setup with chosen transport (stdio or SSE)
+- TypeScript configuration with modern ES modules
+- Component implementations with proper MCP interfaces
+- Automatic wiring of imports and initialization
+
+After scaffolding, you can build and run your MCP server:
+
+```bash
+# Install dependencies
+npm install
+
+# Build the TypeScript code
+npm run build 
+
+# Test the server with MCP Tools
+mcp tools node build/index.js
+```
+
+Project templates are stored in either:
+- Local `./templates/` directory
+- User's home directory: `~/.mcputils/templates/`
+- Next to the MCP Tools executable
 
 ## Server Aliases
 
