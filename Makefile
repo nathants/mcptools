@@ -29,3 +29,11 @@ test: check-go
 lint: check-go
 	@echo "$(BLUE)Running linter...$(NC)"
 	golangci-lint run ./...
+
+dist:
+	mkdir -p dist
+
+clean:
+	rm -rf bin/* dist/*
+
+release: clean lint test build
