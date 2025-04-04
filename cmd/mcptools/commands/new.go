@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ const (
 	transportSSE   = "sse"
 )
 
-// newNewCmd returns a new 'new' command for scaffolding MCP projects.
-func newNewCmd() *cobra.Command {
+// NewCmd returns a new 'new' command for scaffolding MCP projects.
+func NewCmd() *cobra.Command {
 	var sdkFlag string
 	var transportFlag string
 
@@ -183,10 +183,8 @@ func copyFile(srcPath, destPath string, replacements map[string]string) error {
 
 	// Apply replacements
 	fileContent := string(content)
-	if replacements != nil { // nolint
-		for key, value := range replacements {
-			fileContent = strings.ReplaceAll(fileContent, key, value)
-		}
+	for key, value := range replacements {
+		fileContent = strings.ReplaceAll(fileContent, key, value)
 	}
 
 	// Ensure parent directory exists

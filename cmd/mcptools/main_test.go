@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/f/mcptools/cmd/mcptools/commands"
 	"github.com/f/mcptools/pkg/transport"
 )
 
@@ -366,7 +367,7 @@ func TestProxyToolRegistration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := proxyToolCmd()
+			cmd := commands.ProxyToolCmd()
 			err := cmd.RunE(cmd, tc.args)
 
 			if tc.expectError {
@@ -382,7 +383,7 @@ func TestProxyToolRegistration(t *testing.T) {
 			}
 
 			// Verify the tool was registered in the config
-			config, err := loadProxyConfig()
+			config, err := commands.LoadProxyConfig()
 			if err != nil {
 				t.Fatalf("Error loading config: %v", err)
 			}
@@ -403,7 +404,7 @@ func TestProxyToolUnregistration(t *testing.T) {
 	}
 
 	// First register a tool
-	cmd := proxyToolCmd()
+	cmd := commands.ProxyToolCmd()
 	err := cmd.RunE(cmd, []string{
 		"test_tool",
 		"Test tool",
@@ -425,7 +426,7 @@ func TestProxyToolUnregistration(t *testing.T) {
 	}
 
 	// Verify the tool was removed from the config
-	config, err := loadProxyConfig()
+	config, err := commands.LoadProxyConfig()
 	if err != nil {
 		t.Fatalf("Error loading config: %v", err)
 	}
