@@ -22,6 +22,10 @@ build:
 	@echo "$(YELLOW)Building $(BINARY_NAME)...$(NC)"
 	go build -ldflags "-X main.Version=$(VERSION)" -o bin/$(BINARY_NAME) ./cmd/mcptools
 
+install-templates:
+	mkdir -p $(HOME)/.mcpt/templates
+	cp -r templates/* $(HOME)/.mcpt/templates/
+
 test: check-go
 	@echo "$(YELLOW)Running tests...$(NC)"
 	go test -v ./...
