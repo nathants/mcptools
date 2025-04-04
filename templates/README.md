@@ -7,7 +7,7 @@ This directory contains templates for creating MCP (Model Context Protocol) serv
 The templates will be automatically found if they are in one of these locations:
 
 1. `./templates/`: Local project directory
-2. `~/.mcputils/templates/`: User's home directory
+2. `~/.mcpt/templates/`: User's home directory
 3. Next to the executable in the installed location
 
 To install templates to your home directory:
