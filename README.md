@@ -316,7 +316,7 @@ mcp tools node build/index.js
 
 Project templates are stored in either:
 - Local `./templates/` directory
-- User's home directory: `~/.mcputils/templates/`
+- User's home directory: `~/.mcpt/templates/`
 - Next to the MCP Tools executable
 
 When installing via Homebrew, templates are automatically installed to your home directory. But if you use source install, you need to run `make install-templates`.
