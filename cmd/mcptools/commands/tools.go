@@ -30,7 +30,7 @@ func ToolsCmd() *cobra.Command {
 			}
 
 			resp, listErr := mcpClient.ListTools()
-			if formatErr := FormatAndPrintResponse(resp, listErr); formatErr != nil {
+			if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

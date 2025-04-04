@@ -80,7 +80,7 @@ func ReadResourceCmd() *cobra.Command {
 			}
 
 			resp, execErr := mcpClient.ReadResource(resourceName)
-			if formatErr := FormatAndPrintResponse(resp, execErr); formatErr != nil {
+			if formatErr := FormatAndPrintResponse(thisCmd, resp, execErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

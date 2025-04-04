@@ -2,35 +2,24 @@ package commands
 
 import (
 	"bytes"
-	"io"
-	"os"
 	"testing"
 )
 
 func TestVersionCmd(t *testing.T) {
-	// Save original stdout and restore it at the end
-	originalStdout := os.Stdout
-	defer func() { os.Stdout = originalStdout }()
+	buf := new(bytes.Buffer)
 
-	// Create a pipe to capture stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Set a test version
 	oldVersion := Version
 	Version = "test-version"
 	defer func() { Version = oldVersion }()
 
-	// Execute the version command
-	cmd := NewVersionCmd()
-	cmd.Execute()
-
-	// Close the write end of the pipe to read from it
-	w.Close()
+	// Execute the version command with our buffer
+	cmd := VersionCmd()
+	cmd.SetOut(buf)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Failed to execute version command: %v", err)
+	}
 
 	// Read captured output
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
 	output := buf.String()
 
 	// Check that the version is in the output
@@ -42,7 +31,7 @@ func TestVersionCmd(t *testing.T) {
 
 func TestVersionCmdWorks(t *testing.T) {
 	// Test that the version command can be created and executed
-	cmd := NewVersionCmd()
+	cmd := VersionCmd()
 	if cmd == nil {
 		t.Fatal("Expected version command to be created")
 	}

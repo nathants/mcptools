@@ -14,8 +14,8 @@ func VersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the version information",
-		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Printf("MCP Tools version %s\n", Version)
+		Run: func(cmd *cobra.Command, _ []string) {
+			fmt.Fprintf(cmd.OutOrStdout(), "MCP Tools version %s\n", Version)
 		},
 	}
 }

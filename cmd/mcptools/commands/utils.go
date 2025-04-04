@@ -7,6 +7,7 @@ import (
 	"github.com/f/mcptools/pkg/alias"
 	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/jsonutils"
+	"github.com/spf13/cobra"
 )
 
 // sentinel errors.
@@ -70,7 +71,7 @@ func ProcessFlags(args []string) []string {
 
 // FormatAndPrintResponse formats and prints an MCP response in the format specified by
 // FormatOption.
-func FormatAndPrintResponse(resp map[string]any, err error) error {
+func FormatAndPrintResponse(cmd *cobra.Command, resp map[string]any, err error) error {
 	if err != nil {
 		return fmt.Errorf("error: %w", err)
 	}
@@ -80,6 +81,6 @@ func FormatAndPrintResponse(resp map[string]any, err error) error {
 		return fmt.Errorf("error formatting output: %w", err)
 	}
 
-	fmt.Println(output)
+	fmt.Fprintln(cmd.OutOrStdout(), output)
 	return nil
 }

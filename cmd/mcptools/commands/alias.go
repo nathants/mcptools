@@ -75,7 +75,7 @@ Example:
 				return fmt.Errorf("error saving aliases: %w", saveErr)
 			}
 
-			fmt.Printf("Alias '%s' registered for command: %s\n", aliasName, serverCommand)
+			fmt.Fprintf(thisCmd.OutOrStdout(), "Alias '%s' registered for command: %s\n", aliasName, serverCommand)
 			return nil
 		},
 	}
@@ -86,7 +86,7 @@ func aliasListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List all registered MCP server aliases",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Load existing aliases
 			aliases, err := alias.Load()
 			if err != nil {
@@ -94,13 +94,13 @@ func aliasListCmd() *cobra.Command {
 			}
 
 			if len(aliases) == 0 {
-				fmt.Println("No aliases registered.")
+				fmt.Fprintln(cmd.OutOrStdout(), "No aliases registered.")
 				return nil
 			}
 
-			fmt.Println("Registered MCP server aliases:")
+			fmt.Fprintln(cmd.OutOrStdout(), "Registered MCP server aliases:")
 			for name, a := range aliases {
-				fmt.Printf("  %s: %s\n", name, a.Command)
+				fmt.Fprintf(cmd.OutOrStdout(), "  %s: %s\n", name, a.Command)
 			}
 
 			return nil
@@ -140,7 +140,7 @@ Example:
 				return fmt.Errorf("error saving aliases: %w", saveErr)
 			}
 
-			fmt.Printf("Alias '%s' removed.\n", aliasName)
+			fmt.Fprintf(thisCmd.OutOrStdout(), "Alias '%s' removed.\n", aliasName)
 			return nil
 		},
 	}
