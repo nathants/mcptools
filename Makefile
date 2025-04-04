@@ -24,7 +24,7 @@ build:
 
 install-templates:
 	mkdir -p $(HOME)/.mcpt/templates
-	cp -r templates/* $(HOME)/.mcpt/templates/
+	cp -r $(CURDIR)/templates/* $(HOME)/.mcpt/templates/
 
 test: check-go
 	@echo "$(YELLOW)Running tests...$(NC)"
