@@ -58,7 +58,6 @@ func TestReadResourceCmdRun_Success(t *testing.T) {
 
 	// When: the command is executed
 	err := cmd.Execute()
-
 	// Then: no error is returned
 	if err != nil {
 		t.Errorf("cmd.Execute() error = %v", err)
