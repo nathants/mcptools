@@ -25,13 +25,13 @@ func TestResourcesCmdRun_Help(t *testing.T) {
 }
 
 func TestResourcesCmdRun_Success(t *testing.T) {
-	t.Skip("Skipping resources command test as resources are not working as expected")
 	// Create a mock client that returns successful response
 	mockResponse := map[string]any{
 		"resources": []any{
 			map[string]any{
-				"uri":         "test-resource",
-				"type":        "text",
+				"uri":         "test://resource",
+				"mimeType":    "text/plain",
+				"name":        "TestResource",
 				"description": "Test resource description",
 			},
 		},
@@ -59,6 +59,8 @@ func TestResourcesCmdRun_Success(t *testing.T) {
 
 	// Verify output contains expected content
 	output := buf.String()
-	assertContains(t, output, "test-resource")
+	assertContains(t, output, "TestResource")
+	assertContains(t, output, "test://resource")
+	assertContains(t, output, "text/plain")
 	assertContains(t, output, "Test resource description")
 }

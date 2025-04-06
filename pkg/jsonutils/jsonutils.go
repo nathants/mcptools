@@ -622,16 +622,23 @@ func formatResourcesList(resources any) (string, error) {
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
 	useColors := isTerminal()
 
+	// NOTE: Ensure that the column headers are the same length,
+	//       including the color escape sequences!
 	if useColors {
-		fmt.Fprintf(w, "%s%sNAME%s\t%sTYPE%s\t%sURI%s\n",
-			ColorBold, ColorCyan, ColorReset,
+		fmt.Fprintf(w, "%sNAME%s\t%sMIMETYPE%s\t%sURI%s\t%sDESCRIPTION%s\n",
+			ColorCyan, ColorReset,
+			ColorCyan, ColorReset,
+			ColorCyan, ColorReset,
+			ColorCyan, ColorReset)
+		fmt.Fprintf(w, "%s----%s\t%s--------%s\t%s---%s\t%s----------%s\n",
+			ColorCyan, ColorReset,
+			ColorCyan, ColorReset,
 			ColorCyan, ColorReset,
 			ColorCyan, ColorReset)
 	} else {
-		fmt.Fprintln(w, "NAME\tTYPE\tURI")
+		fmt.Fprintln(w, "NAME\tMIMETYPE\tURI\tDESCRIPTION")
+		fmt.Fprintln(w, "----\t--------\t---\t-----------")
 	}
-
-	fmt.Fprintln(w, "----\t----\t---")
 
 	for _, r := range resourcesSlice {
 		resource, ok1 := r.(map[string]any)
@@ -640,17 +647,22 @@ func formatResourcesList(resources any) (string, error) {
 		}
 
 		name, _ := resource["name"].(string)
-		resType, _ := resource["type"].(string)
+		mimeType, _ := resource["mimeType"].(string)
 		uri, _ := resource["uri"].(string)
+		desc, _ := resource["description"].(string)
+		if len(desc) > 50 {
+			desc = desc[:47] + "..."
+		}
 
 		// Use the entire URI instead of truncating
 		if useColors {
-			fmt.Fprintf(w, "%s%s%s\t%s%s\t%s%s%s\n",
+			fmt.Fprintf(w, "%s%s%s\t%s%s%s\t%s%s%s\t%s\n",
 				ColorGreen, name, ColorReset,
-				resType, ColorReset,
-				ColorYellow, uri, ColorReset)
+				ColorGreen, mimeType, ColorReset,
+				ColorYellow, uri, ColorReset,
+				desc)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\n", name, resType, uri)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", name, mimeType, uri, desc)
 		}
 	}
 
