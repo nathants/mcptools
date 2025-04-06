@@ -20,7 +20,7 @@ check-go:
 
 build:
 	@echo "$(YELLOW)Building $(BINARY_NAME)...$(NC)"
-	go build -ldflags "-X main.Version=$(VERSION)" -o bin/$(BINARY_NAME) ./cmd/mcptools
+	go build -ldflags "-X main.Version=$(VERSION) -X main.TemplatesPath=$(HOME)/.mcpt/templates" -o bin/$(BINARY_NAME) ./cmd/mcptools
 
 install-templates:
 	mkdir -p $(HOME)/.mcpt/templates

@@ -12,11 +12,13 @@ import (
 
 // version information placeholders.
 var (
-	Version = "dev"
+	Version       = "dev"
+	TemplatesPath = os.Getenv("HOME") + "/.mcpt/templates"
 )
 
 func init() {
 	commands.Version = Version
+	commands.TemplatesPath = TemplatesPath
 }
 
 func main() {

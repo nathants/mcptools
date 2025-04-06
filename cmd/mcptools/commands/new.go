@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var TemplatesPath string = os.Getenv("HOME") + "/.mcpt/templates"
+
 // Constants for template options.
 const (
 	sdkTypeScript  = "ts"
@@ -267,6 +269,9 @@ func findTemplatesDir(sdk string) string {
 
 		// User home directory
 		filepath.Join(os.Getenv("HOME"), ".mcpt", "templates", sdk),
+
+		// TemplatesPath from env
+		TemplatesPath,
 
 		// Executable directory
 		func() string {
