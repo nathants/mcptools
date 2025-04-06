@@ -79,7 +79,7 @@ The simplest way to start using MCP Tools is to connect to an MCP server and lis
 mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 
 # Call a specific tool
-mcp call read_file --params '{"path": "README.md"}' npx -y @modelcontextprotocol/server-filesystem ~
+mcp call read_file --params '{"path":"README.md"}' npx -y @modelcontextprotocol/server-filesystem ~
 
 # Open an interactive shell
 mcp shell npx -y @modelcontextprotocol/server-filesystem ~
@@ -303,11 +303,11 @@ edit_file(edits:{newText:str,oldText:str}[], path:str)
      Edit a file with multiple text replacements
 
 # Direct tool calling is supported
-mcp > read_file {"path": "README.md"}
+mcp > read_file {"path":"README.md"}
 ...content of README.md...
 
 # Calling a tool with complex object parameters
-mcp > edit_file {"path": "main.go", "edits": [{"oldText": "foo", "newText": "bar"}]}
+mcp > edit_file {"path":"main.go","edits":[{"oldText":"foo","newText":"bar"}]}
 ...result of edit operation...
 
 # Get help
@@ -385,7 +385,7 @@ mcp alias remove myfs
 
 # Use an alias with any MCP command
 mcp tools myfs
-mcp call read_file --params '{"path": "README.md"}' myfs
+mcp call read_file --params '{"path":"README.md"}' myfs
 ```
 
 Server aliases are stored in `$HOME/.mcpt/aliases.json` and provide a convenient way to work with commonly used MCP servers without typing long commands repeatedly.
@@ -521,7 +521,7 @@ mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 Call a tool with pretty JSON output:
 
 ```bash
-mcp call read_file --params '{"path": "README.md"}' --format pretty npx -y @modelcontextprotocol/server-filesystem ~
+mcp call read_file --params '{"path":"README.md"}' --format pretty npx -y @modelcontextprotocol/server-filesystem ~
 ```
 
 ### Script Integration
