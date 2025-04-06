@@ -63,15 +63,13 @@ func TestCallCmdRun_Tool(t *testing.T) {
 }
 
 func TestCallCmdRun_Resource(t *testing.T) {
-	t.Skip("Skipping resource command test as resources are not working as expected")
-
 	// Create a mock client that returns successful response
 	mockResponse := map[string]any{
-		"resources": []any{
+		"contents": []any{
 			map[string]any{
-				"uri":         "test-resource",
-				"type":        "text",
-				"description": "Test resource description",
+				"uri":      "test://foo",
+				"mimeType": "text/plain",
+				"text":     "bar",
 			},
 		},
 	}
@@ -90,7 +88,7 @@ func TestCallCmdRun_Resource(t *testing.T) {
 	cmd.SetOut(buf)
 
 	// Execute command with resource
-	cmd.SetArgs([]string{"resource:test-resource", "server", "arg"})
+	cmd.SetArgs([]string{"resource:test-resource", "-f", "json", "server", "arg"})
 	err := cmd.Execute()
 	if err != nil {
 		t.Errorf("cmd.Execute() error = %v", err)
@@ -98,6 +96,6 @@ func TestCallCmdRun_Resource(t *testing.T) {
 
 	// Verify output contains expected content
 	output := buf.String()
-	expectedOutput := "Resource content"
+	expectedOutput := `{"contents":[{"mimeType":"text/plain","text":"bar","uri":"test://foo"}]}`
 	assertContains(t, output, expectedOutput)
 }
