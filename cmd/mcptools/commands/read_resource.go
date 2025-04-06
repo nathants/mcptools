@@ -1,10 +1,8 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -63,14 +61,6 @@ func ReadResourceCmd() *cobra.Command {
 					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
-			}
-
-			var params map[string]any
-			if len(parsedArgs) > 0 {
-				if jsonErr := json.Unmarshal([]byte(strings.Join(parsedArgs, " ")), &params); jsonErr != nil {
-					fmt.Fprintf(os.Stderr, "Error: invalid JSON for params: %v\n", jsonErr)
-					os.Exit(1)
-				}
 			}
 
 			mcpClient, clientErr := CreateClientFunc(parsedArgs)
