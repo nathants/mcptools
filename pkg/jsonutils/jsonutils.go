@@ -778,14 +778,16 @@ func formatGenericMap(data map[string]any) (string, error) {
 	useColors := isTerminal()
 
 	if useColors {
-		fmt.Fprintf(w, "%s%sKEY%s\t%sVALUE%s\n",
-			ColorBold, ColorCyan, ColorReset,
+		fmt.Fprintf(w, "%sKEY%s\t%sVALUE%s\n",
+			ColorCyan, ColorReset,
+			ColorCyan, ColorReset)
+		fmt.Fprintf(w, "%s---%s\t%s-----%s\n",
+			ColorCyan, ColorReset,
 			ColorCyan, ColorReset)
 	} else {
 		fmt.Fprintln(w, "KEY\tVALUE")
+		fmt.Fprintln(w, "---\t-----")
 	}
-
-	fmt.Fprintln(w, "---\t-----")
 
 	keys := make([]string, 0, len(data))
 	for k := range data {
