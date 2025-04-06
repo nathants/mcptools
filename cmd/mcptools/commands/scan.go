@@ -20,7 +20,7 @@ func ScanCmd() *cobra.Command {
 		Use:   "scan",
 		Short: "Scan for available MCP servers in various configurations",
 		Long: `Scan for available MCP servers in various configuration files of these Applications on macOS:
-VS Code, VS Code Insiders, Windsurf, Cursor, Claude Desktop`,
+VS Code, VS Code Insiders, Windsurf, Cursor, Claude Desktop, Claude Code`,
 		Run: func(cmd *cobra.Command, _ []string) {
 			servers, err := scanForServers()
 			if err != nil {
@@ -308,6 +308,13 @@ func scanForServers() ([]ServerConfig, error) {
 	claudeServers, err := scanMCPServersConfig(claudeDesktopPath, "Claude Desktop")
 	if err == nil {
 		servers = append(servers, claudeServers...)
+	}
+
+	// Scan Claude Code
+	claudeCodePath := filepath.Join(homeDir, ".claude.json")
+	claudeCodeServers, err := scanMCPServersConfig(claudeCodePath, "Claude Code")
+	if err == nil {
+		servers = append(servers, claudeCodeServers...)
 	}
 
 	return servers, nil
