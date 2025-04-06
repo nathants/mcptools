@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+const (
+	protocolVersion = "2024-11-05"
+)
+
 // Transport defines the interface for communicating with MCP servers.
 // Implementations should handle the specifics of communication protocols.
 type Transport interface {
@@ -17,7 +21,7 @@ type Request struct {
 	Params  any    `json:"params,omitempty"`
 	JSONRPC string `json:"jsonrpc"`
 	Method  string `json:"method"`
-	ID      int    `json:"id"`
+	ID      int    `json:"id,omitempty"`
 }
 
 // Response represents a JSON-RPC 2.0 response.
