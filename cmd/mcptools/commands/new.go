@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var TemplatesPath string = os.Getenv("HOME") + "/.mcpt/templates"
-
 // Constants for template options.
 const (
 	sdkTypeScript  = "ts"
@@ -104,6 +102,7 @@ func createProjectStructure(components map[string]string, sdk, transport string)
 
 	// Look for templates in multiple locations
 	templatesDir := findTemplatesDir(sdk)
+
 	if templatesDir == "" {
 		return fmt.Errorf("could not find templates directory for SDK: %s", sdk)
 	}

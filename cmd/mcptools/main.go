@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// version information placeholders.
+// Build parameters.
 var (
-	Version       = "dev"
-	TemplatesPath = os.Getenv("HOME") + "/.mcpt/templates"
+	Version       string
+	TemplatesPath string
 )
 
 func init() {
