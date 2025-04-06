@@ -92,24 +92,27 @@ MCP Tools supports a wide range of features for interacting with MCP servers:
 ```
 Usage:
   mcp [command]
-  
+
 Available Commands:
-  alias          Manage MCP server aliases
-  call           Call a tool, resource, or prompt on the MCP server
-  help           Help about any command
-  mock           Create a mock MCP server with tools, prompts, and resources
-  new            Create a new MCP project from templates
-  proxy          Proxy MCP tool requests to shell scripts
-  prompts        List available prompts on the MCP server
-  resources      List available resources on the MCP server
-  shell          Start an interactive shell for MCP commands
-  tools          List available tools on the MCP server
-  version        Print the version information
-  
+  version       Print the version information
+  tools         List available tools on the MCP server
+  resources     List available resources on the MCP server
+  prompts       List available prompts on the MCP server
+  call          Call a tool, resource, or prompt on the MCP server
+  get-prompt    Get a prompt on the MCP server
+  read-resource Read a resource on the MCP server
+  shell         Start an interactive shell for MCP commands
+  mock          Create a mock MCP server with tools, prompts, and resources
+  proxy         Proxy MCP tool requests to shell scripts
+  alias         Manage MCP server aliases
+  new           Create a new MCP project component
+  help          Help about any command
+  completion    Generate the autocompletion script for the specified shell
+
 Flags:
   -f, --format string   Output format (table, json, pretty) (default "table")
-  -h, --help            Help for mcp
-  -p, --params string   JSON string of parameters to pass to the tool (default "{}")
+  -h, --help            help for mcp
+  -p, --params string   JSON string of parameters to pass to the tool (for call command) (default "{}")
 ```
 
 ### Transport Options
