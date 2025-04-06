@@ -38,6 +38,7 @@ func main() {
 		commands.ProxyCmd(),
 		commands.AliasCmd(),
 		commands.NewCmd(),
+		commands.ScanCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
