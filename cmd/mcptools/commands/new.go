@@ -271,7 +271,7 @@ func findTemplatesDir(sdk string) string {
 		filepath.Join(os.Getenv("HOME"), ".mcpt", "templates", sdk),
 
 		// TemplatesPath from env
-		TemplatesPath,
+		filepath.Join(TemplatesPath, sdk),
 
 		// Executable directory
 		func() string {
