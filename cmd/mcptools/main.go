@@ -37,8 +37,8 @@ func main() {
 		commands.MockCmd(),
 		commands.ProxyCmd(),
 		commands.AliasCmd(),
-		commands.NewCmd(),
 		commands.ScanCmd(),
+		commands.NewCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
