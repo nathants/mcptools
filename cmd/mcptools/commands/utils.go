@@ -84,3 +84,10 @@ func FormatAndPrintResponse(cmd *cobra.Command, resp map[string]any, err error) 
 	fmt.Fprintln(cmd.OutOrStdout(), output)
 	return nil
 }
+
+// IsValidFormat returns true if the format is valid.
+func IsValidFormat(format string) bool {
+	return format == "json" || format == "j" ||
+		format == "pretty" || format == "p" ||
+		format == "table" || format == "t"
+}
