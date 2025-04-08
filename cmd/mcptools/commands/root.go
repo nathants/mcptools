@@ -27,7 +27,8 @@ const (
 var (
 	// FormatOption is the format option for the command, valid values are "table", "json", and
 	// "pretty".
-	FormatOption string
+	// Default is "table".
+	FormatOption = "table"
 	// ParamsString is the params for the command.
 	ParamsString string
 )

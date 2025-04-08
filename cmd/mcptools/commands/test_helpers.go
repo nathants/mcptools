@@ -19,7 +19,7 @@ func (m *MockTransport) Execute(method string, params any) (map[string]any, erro
 }
 
 // setupMockClient creates a mock client with the given execute function and returns cleanup function.
-func setupMockClient(executeFunc func(method string, params any) (map[string]any, error)) func() {
+func setupMockClient(executeFunc func(method string, _ any) (map[string]any, error)) func() {
 	// Save original function and restore later
 	originalFunc := CreateClientFunc
 
