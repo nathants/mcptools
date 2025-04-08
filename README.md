@@ -30,7 +30,7 @@
   - [Interactive Shell](#interactive-shell)
   - [Project Scaffolding](#project-scaffolding)
 - [Server Aliases](#server-aliases)
-- [Config Management](#config-management)
+- [LLM Apps Config Management](#llm-apps-config-management)
 - [Server Modes](#server-modes)
   - [Mock Server Mode](#mock-server-mode)
   - [Proxy Mode](#proxy-mode)
@@ -398,7 +398,7 @@ mcp call read_file --params '{"path":"README.md"}' myfs
 
 Server aliases are stored in `$HOME/.mcpt/aliases.json` and provide a convenient way to work with commonly used MCP servers without typing long commands repeatedly.
 
-## Config Management
+## LLM Apps Config Management
 
 MCP Tools provides a powerful configuration management system that helps you work with MCP server configurations across multiple applications:
 
