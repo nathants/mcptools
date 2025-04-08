@@ -112,8 +112,8 @@ Available Commands:
   shell         Start an interactive shell for MCP commands
   mock          Create a mock MCP server with tools, prompts, and resources
   proxy         Proxy MCP tool requests to shell scripts
-  scan          Scan for available MCP servers in various applications
   alias         Manage MCP server aliases
+  configs       Manage MCP server configurations
   new           Create a new MCP project component
   help          Help about any command
   completion    Generate the autocompletion script for the specified shell
@@ -122,6 +122,8 @@ Flags:
   -f, --format string   Output format (table, json, pretty) (default "table")
   -h, --help            help for mcp
   -p, --params string   JSON string of parameters to pass to the tool (for call command) (default "{}")
+
+Use "mcp [command] --help" for more information about a command.
 ```
 
 ### Transport Options
@@ -236,50 +238,6 @@ mcp call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~
 
 ```bash
 mcp call prompt:my-prompt --params '{"name":"John"}' npx -y @modelcontextprotocol/server-filesystem ~
-```
-
-#### Scan for MCP Servers
-
-The scan command searches for MCP server configurations across multiple applications:
-
-```bash
-# Scan for all MCP servers in supported applications
-mcp scan
-
-# Display in JSON format grouped by application
-mcp scan -f json
-
-# Display in colorized format (default)
-mcp scan -f table
-```
-
-The scan command looks for MCP server configurations in:
-- Visual Studio Code
-- Visual Studio Code Insiders
-- Windsurf
-- Cursor
-- Claude Desktop
-
-For each server, it displays:
-- Server source (application)
-- Server name
-- Server type (stdio or sse)
-- Command and arguments or URL
-- Environment variables (for stdio servers)
-- Headers (for sse servers)
-
-Example output:
-```
-VS Code Insiders
-  GitHub (stdio):
-    docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
-
-Claude Desktop
-  Proxy (stdio):
-    mcp proxy start
-
-  My Files (stdio):
-    npx -y @modelcontextprotocol/server-filesystem ~/
 ```
 
 ### Interactive Shell
@@ -446,6 +404,27 @@ Configurations are managed through a central registry in `$HOME/.mcpt/configs.js
 - Claude Desktop and Claude Code
 
 The system automatically displays server configurations in a colorized format grouped by source, showing command-line or URL information, headers, and environment variables.
+
+`mcp configs scan` command looks for MCP server configurations in:
+- Visual Studio Code
+- Visual Studio Code Insiders
+- Windsurf
+- Cursor
+- Claude Desktop
+
+Example Output:
+```
+VS Code Insiders
+  GitHub (stdio):
+    docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
+
+Claude Desktop
+  Proxy (stdio):
+    mcp proxy start
+
+  My Files (stdio):
+    npx -y @modelcontextprotocol/server-filesystem ~/
+```
 
 ## Server Modes
 
