@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // Stdio implements the Transport interface by executing a command
@@ -73,17 +74,30 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 		return nil, err
 	}
 
-	waitErr := cmd.Wait()
+	// Wait for the command to finish with a timeout to prevent zombie processes
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
 
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Command completed with err: %v\n", waitErr)
-		if stderrBuf.Len() > 0 {
-			fmt.Fprintf(os.Stderr, "DEBUG: stderr output:\n%s\n", stderrBuf.String())
+	select {
+	case waitErr := <-done:
+		if t.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Command completed with err: %v\n", waitErr)
+			if stderrBuf.Len() > 0 {
+				fmt.Fprintf(os.Stderr, "DEBUG: stderr output:\n%s\n", stderrBuf.String())
+			}
 		}
-	}
 
-	if waitErr != nil && stderrBuf.Len() > 0 {
-		return nil, fmt.Errorf("command error: %w, stderr: %s", waitErr, stderrBuf.String())
+		if waitErr != nil && stderrBuf.Len() > 0 {
+			return nil, fmt.Errorf("command error: %w, stderr: %s", waitErr, stderrBuf.String())
+		}
+	case <-time.After(1 * time.Second):
+		if t.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Command timed out after 1 seconds\n")
+		}
+		// Kill the process if it times out
+		_ = cmd.Process.Kill()
 	}
 
 	return response.Result, nil
