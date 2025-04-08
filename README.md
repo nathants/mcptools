@@ -2,9 +2,16 @@
   <img src="./.github/resources/logo.png" alt="MCP Tools" height="150">
 </p>
 
-# MCP Tools CLI
-
-A command-line interface for interacting with MCP (Model Context Protocol) servers.
+<p align="center">
+  <h1 align="center">Swiss Army Knife for MCP Servers</h1>
+  <p align="center">
+    A comprehensive command-line interface for interacting with MCP (Model Context Protocol) servers.
+    <br>
+    Discover, call, and manage tools, resources, and prompts from any MCP-compatible server.
+    <br>
+    Supports multiple transport methods, output formats, and includes powerful mock and proxy server capabilities.
+  </p>
+</p>
 
 [![Blog Post](https://img.shields.io/badge/Blog-Read%20about%20MCP%20Tools-blue)](https://blog.fka.dev/blog/2025-03-27-mcp-inspector-vs-mcp-tools/)
 
