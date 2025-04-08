@@ -1735,7 +1735,7 @@ VS Code, VS Code Insiders, Windsurf, Cursor, Claude Desktop, Claude Code`,
 			}
 
 			// Output the JSON configuration
-			output, err := json.Marshal(serverConfig)
+			output, err := json.MarshalIndent(serverConfig, "", "  ")
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Error generating JSON: %v\n", err)
 				return
