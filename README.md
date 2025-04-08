@@ -231,13 +231,19 @@ mcp call read_file --params '{"path":"/path/to/file"}' npx -y @modelcontextproto
 #### Call a Resource
 
 ```bash
-mcp call resource:my-resource npx -y @modelcontextprotocol/server-filesystem ~
+mcp call resource:test://static/resource/1 npx -y @modelcontextprotocol/server-everything -f json | jq ".contents[0].text"
+```
+
+or 
+
+```bash
+mcp read-resource test://static/resource/1 npx -y @modelcontextprotocol/server-everything -f json | jq ".contents[0].text"
 ```
 
 #### Call a Prompt
 
 ```bash
-mcp call prompt:my-prompt --params '{"name":"John"}' npx -y @modelcontextprotocol/server-filesystem ~
+mcp get-prompt simple_prompt npx -y @modelcontextprotocol/server-everything -f json | jq ".messages[0].content.text"
 ```
 
 ### Interactive Shell
