@@ -38,6 +38,7 @@ func main() {
 		commands.ProxyCmd(),
 		commands.AliasCmd(),
 		commands.ScanCmd(),
+		commands.ConfigsCmd(),
 		commands.NewCmd(),
 	)
 
