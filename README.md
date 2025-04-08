@@ -426,6 +426,20 @@ Claude Desktop
     npx -y @modelcontextprotocol/server-filesystem ~/
 ```
 
+### Bonus
+
+Add official GitHub MCP Server to Windsurf, Cursor and VS Code at once:
+
+```bash
+mcp configs set windsurf,cursor,vscode GitHub \
+  --env "GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_xxx" \
+  docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
+```
+
+<p align="center">
+  <img src=".github/resources/configs.png" alt="MCP Configs Screenshot" width="700">
+</p>
+
 ## Server Modes
 
 MCP Tools can operate as both a client and a server, with two server modes available:
