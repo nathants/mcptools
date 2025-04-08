@@ -1637,5 +1637,120 @@ VS Code, VS Code Insiders, Windsurf, Cursor, Claude Desktop, Claude Code`,
 	// Add subcommands to the configs command
 	cmd.AddCommand(lsCmd, viewCmd, setCmd, removeCmd, aliasCmd, syncCmd, scanCmd)
 
+	// Add the as-json subcommand
+	asJSONCmd := &cobra.Command{
+		Use:   "as-json [command/url] [args...]",
+		Short: "Convert a command or URL to MCP server JSON configuration",
+		Long:  `Convert a command line or URL to a JSON configuration that can be used for MCP servers.`,
+		Args:  cobra.MinimumNArgs(1),
+		// Disable flag parsing after the first arguments to handle command args properly
+		DisableFlagParsing: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			// We need to manually extract the flags we care about
+			var headers string
+			var env string
+
+			// Create cleaned arguments (without our flags)
+			cleanedArgs := make([]string, 0, len(args))
+
+			// Process all args to extract our flags and build clean args
+			i := 0
+			for i < len(args) {
+				arg := args[i]
+
+				// Handle both --flag=value and --flag value formats
+				if strings.HasPrefix(arg, "--headers=") {
+					headers = strings.TrimPrefix(arg, "--headers=")
+					i++
+					continue
+				} else if arg == "--headers" && i+1 < len(args) {
+					headers = args[i+1]
+					i += 2
+					continue
+				}
+
+				if strings.HasPrefix(arg, "--env=") {
+					env = strings.TrimPrefix(arg, "--env=")
+					i++
+					continue
+				} else if arg == "--env" && i+1 < len(args) {
+					env = args[i+1]
+					i += 2
+					continue
+				}
+
+				// If none of our flags, add to cleaned args
+				cleanedArgs = append(cleanedArgs, arg)
+				i++
+			}
+
+			// Make sure we have at least one argument
+			if len(cleanedArgs) < 1 {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: as-json command requires at least one argument (command or URL)\n")
+				return
+			}
+
+			// Determine if first argument is a URL
+			firstArg := cleanedArgs[0]
+			isURL := strings.HasPrefix(firstArg, "http://") || strings.HasPrefix(firstArg, "https://")
+
+			// Create the server configuration
+			serverConfig := make(map[string]interface{})
+
+			if isURL {
+				// URL-based server
+				serverConfig["url"] = firstArg
+
+				// Parse headers if provided
+				if headers != "" {
+					headersMap, err := parseKeyValueOption(headers)
+					if err != nil {
+						fmt.Fprintf(cmd.ErrOrStderr(), "Error parsing headers: %v\n", err)
+						return
+					}
+					if len(headersMap) > 0 {
+						serverConfig["headers"] = headersMap
+					}
+				}
+			} else {
+				// Command-based server
+				serverConfig["command"] = firstArg
+
+				// Add command args if provided
+				if len(cleanedArgs) > 1 {
+					serverConfig["args"] = cleanedArgs[1:]
+				}
+			}
+
+			// Parse environment variables if provided (for both URL and command)
+			if env != "" {
+				envMap, err := parseKeyValueOption(env)
+				if err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "Error parsing environment variables: %v\n", err)
+					return
+				}
+				if len(envMap) > 0 {
+					serverConfig["env"] = envMap
+				}
+			}
+
+			// Output the JSON configuration
+			output, err := json.Marshal(serverConfig)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error generating JSON: %v\n", err)
+				return
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), string(output))
+		},
+	}
+
+	// Add flags to the as-json command - these are just for documentation since we do manual parsing
+	asJSONCmd.Flags().StringVar(&HeadersOption, "headers", "", "Headers for URL-based servers (comma-separated key=value pairs)")
+	asJSONCmd.Flags().StringVar(&EnvOption, "env", "", "Environment variables (comma-separated key=value pairs)")
+
+	// Add the as-json command to the main command
+	cmd.AddCommand(asJSONCmd)
+
 	return cmd
 }

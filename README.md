@@ -429,6 +429,14 @@ mcp configs alias myapp ~/myapp/config.json
 
 # Synchronize and merge configurations from multiple sources
 mcp configs sync vscode cursor --output vscode --default interactive
+
+# Convert a command line to MCP server JSON configuration format
+mcp configs as-json mcp proxy start
+# Output: {"command":"mcp","args":["proxy","start"]}
+
+# Convert a URL to MCP server JSON configuration format
+mcp configs as-json https://api.example.com/mcp --headers "Authorization=Bearer token"
+# Output: {"url":"https://api.example.com/mcp","headers":{"Authorization":"Bearer token"}}
 ```
 
 Configurations are managed through a central registry in `$HOME/.mcpt/configs.json` with predefined aliases for:
