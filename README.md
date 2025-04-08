@@ -30,6 +30,7 @@
   - [Interactive Shell](#interactive-shell)
   - [Project Scaffolding](#project-scaffolding)
 - [Server Aliases](#server-aliases)
+- [LLM Apps Config Management](#llm-apps-config-management)
 - [Server Modes](#server-modes)
   - [Mock Server Mode](#mock-server-mode)
   - [Proxy Mode](#proxy-mode)
@@ -396,6 +397,55 @@ mcp call read_file --params '{"path":"README.md"}' myfs
 ```
 
 Server aliases are stored in `$HOME/.mcpt/aliases.json` and provide a convenient way to work with commonly used MCP servers without typing long commands repeatedly.
+
+## LLM Apps Config Management
+
+MCP Tools provides a powerful configuration management system that helps you work with MCP server configurations across multiple applications:
+
+> 🚧 This works only on macOS for now.
+
+```bash
+# Scan for MCP server configurations across all supported applications
+mcp configs scan
+
+# List all configurations (alias for configs view --all)
+mcp configs ls
+
+# View specific configuration by alias
+mcp configs view vscode
+
+# Add or update a server in a configuration
+mcp configs set vscode my-server npm run mcp-server
+mcp configs set cursor my-api https://api.example.com/mcp --headers "Authorization=Bearer token"
+
+# Add to multiple configurations at once
+mcp configs set vscode,cursor,claude-desktop my-server npm run mcp-server
+
+# Remove a server from a configuration
+mcp configs remove vscode my-server
+
+# Create an alias for a custom config file
+mcp configs alias myapp ~/myapp/config.json
+
+# Synchronize and merge configurations from multiple sources
+mcp configs sync vscode cursor --output vscode --default interactive
+
+# Convert a command line to MCP server JSON configuration format
+mcp configs as-json mcp proxy start
+# Output: {"command":"mcp","args":["proxy","start"]}
+
+# Convert a URL to MCP server JSON configuration format
+mcp configs as-json https://api.example.com/mcp --headers "Authorization=Bearer token"
+# Output: {"url":"https://api.example.com/mcp","headers":{"Authorization":"Bearer token"}}
+```
+
+Configurations are managed through a central registry in `$HOME/.mcpt/configs.json` with predefined aliases for:
+- VS Code and VS Code Insiders
+- Windsurf
+- Cursor
+- Claude Desktop and Claude Code
+
+The system automatically displays server configurations in a colorized format grouped by source, showing command-line or URL information, headers, and environment variables.
 
 ## Server Modes
 

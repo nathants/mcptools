@@ -37,7 +37,7 @@ func main() {
 		commands.MockCmd(),
 		commands.ProxyCmd(),
 		commands.AliasCmd(),
-		commands.ScanCmd(),
+		commands.ConfigsCmd(),
 		commands.NewCmd(),
 	)
 
