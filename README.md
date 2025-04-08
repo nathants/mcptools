@@ -589,3 +589,7 @@ The following features are planned for future releases:
 ## License
 
 This project is licensed under the MIT License.
+
+## Thanks
+
+Thanks to [Fatih Taskiran](https://bsky.app/profile/fatih.co) for the logo design.
