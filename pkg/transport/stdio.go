@@ -84,6 +84,16 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 		return nil, err
 	}
 
+	err = t.closeProcess(process)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Result, nil
+}
+
+// closeProcess waits for the command to finish, returning any error.
+func (t *Stdio) closeProcess(process *stdioProcess) error {
 	_ = process.stdin.Close()
 
 	// Wait for the command to finish with a timeout to prevent zombie processes
@@ -102,7 +112,7 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 		}
 
 		if waitErr != nil && process.stderrBuf.Len() > 0 {
-			return nil, fmt.Errorf("command error: %w, stderr: %s", waitErr, process.stderrBuf.String())
+			return fmt.Errorf("command error: %w, stderr: %s", waitErr, process.stderrBuf.String())
 		}
 	case <-time.After(1 * time.Second):
 		if t.debug {
@@ -112,7 +122,7 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 		_ = process.cmd.Process.Kill()
 	}
 
-	return response.Result, nil
+	return nil
 }
 
 // setupCommand prepares and starts the command, returning the stdin/stdout pipes and any error.
