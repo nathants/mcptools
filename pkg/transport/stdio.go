@@ -19,6 +19,14 @@ type Stdio struct {
 	debug   bool
 }
 
+// stdioProcess reflects the state of a running command.
+type stdioProcess struct {
+	stdin     io.WriteCloser
+	stdout    io.ReadCloser
+	cmd       *exec.Cmd
+	stderrBuf *bytes.Buffer
+}
+
 // NewStdio creates a new Stdio transport that will execute the given command.
 // It communicates with the command using JSON-RPC over stdin/stdout.
 func NewStdio(command []string) *Stdio {
@@ -33,7 +41,10 @@ func NewStdio(command []string) *Stdio {
 // Execute implements the Transport interface by spawning a subprocess
 // and communicating with it via JSON-RPC over stdin/stdout.
 func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
-	stdin, stdout, cmd, stderrBuf, err := t.setupCommand()
+	process := &stdioProcess{}
+
+	var err error
+	process.stdin, process.stdout, process.cmd, process.stderrBuf, err = t.setupCommand()
 	if err != nil {
 		return nil, err
 	}
@@ -42,11 +53,11 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 		fmt.Fprintf(os.Stderr, "DEBUG: Starting initialization\n")
 	}
 
-	if initErr := t.initialize(stdin, stdout); initErr != nil {
+	if initErr := t.initialize(process.stdin, process.stdout); initErr != nil {
 		if t.debug {
 			fmt.Fprintf(os.Stderr, "DEBUG: Initialization failed: %v\n", initErr)
-			if stderrBuf.Len() > 0 {
-				fmt.Fprintf(os.Stderr, "DEBUG: stderr during init: %s\n", stderrBuf.String())
+			if process.stderrBuf.Len() > 0 {
+				fmt.Fprintf(os.Stderr, "DEBUG: stderr during init: %s\n", process.stderrBuf.String())
 			}
 		}
 		return nil, initErr
@@ -64,41 +75,41 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 	}
 	t.nextID++
 
-	if sendErr := t.sendRequest(stdin, request); sendErr != nil {
+	if sendErr := t.sendRequest(process.stdin, request); sendErr != nil {
 		return nil, sendErr
 	}
 
-	response, err := t.readResponse(stdout)
+	response, err := t.readResponse(process.stdout)
 	if err != nil {
 		return nil, err
 	}
 
-	_ = stdin.Close()
+	_ = process.stdin.Close()
 
 	// Wait for the command to finish with a timeout to prevent zombie processes
 	done := make(chan error, 1)
 	go func() {
-		done <- cmd.Wait()
+		done <- process.cmd.Wait()
 	}()
 
 	select {
 	case waitErr := <-done:
 		if t.debug {
 			fmt.Fprintf(os.Stderr, "DEBUG: Command completed with err: %v\n", waitErr)
-			if stderrBuf.Len() > 0 {
-				fmt.Fprintf(os.Stderr, "DEBUG: stderr output:\n%s\n", stderrBuf.String())
+			if process.stderrBuf.Len() > 0 {
+				fmt.Fprintf(os.Stderr, "DEBUG: stderr output:\n%s\n", process.stderrBuf.String())
 			}
 		}
 
-		if waitErr != nil && stderrBuf.Len() > 0 {
-			return nil, fmt.Errorf("command error: %w, stderr: %s", waitErr, stderrBuf.String())
+		if waitErr != nil && process.stderrBuf.Len() > 0 {
+			return nil, fmt.Errorf("command error: %w, stderr: %s", waitErr, process.stderrBuf.String())
 		}
 	case <-time.After(1 * time.Second):
 		if t.debug {
 			fmt.Fprintf(os.Stderr, "DEBUG: Command timed out after 1 seconds\n")
 		}
 		// Kill the process if it times out
-		_ = cmd.Process.Kill()
+		_ = process.cmd.Process.Kill()
 	}
 
 	return response.Result, nil
