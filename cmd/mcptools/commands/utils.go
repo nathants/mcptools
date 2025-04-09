@@ -17,7 +17,7 @@ var (
 
 // CreateClientFunc is the function used to create MCP clients.
 // This can be replaced in tests to use a mock transport.
-var CreateClientFunc = func(args []string) (*client.Client, error) {
+var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Client, error) {
 	if len(args) == 0 {
 		return nil, ErrCommandRequired
 	}
@@ -42,7 +42,13 @@ var CreateClientFunc = func(args []string) (*client.Client, error) {
 		return client.NewHTTP(args[0]), nil
 	}
 
-	return client.NewStdio(args), nil
+	c := client.NewStdio(args)
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c, nil
 }
 
 // ProcessFlags processes command line flags, sets the format option, and returns the remaining

@@ -18,6 +18,10 @@ type Client struct {
 	transport transport.Transport
 }
 
+// Option provides a way for passing options to the Client to change its
+// configuration.
+type Option func(*Client)
+
 // NewWithTransport creates a new MCP client using the provided transport.
 // This allows callers to provide a custom transport implementation.
 func NewWithTransport(t transport.Transport) *Client {
