@@ -30,7 +30,7 @@ func setupMockClient(executeFunc func(method string, _ any) (map[string]any, err
 	mockClient := client.NewWithTransport(mockTransport)
 
 	// Override the function that creates clients
-	CreateClientFunc = func(_ []string) (*client.Client, error) {
+	CreateClientFunc = func(_ []string, _ ...client.Option) (*client.Client, error) {
 		return mockClient, nil
 	}
 

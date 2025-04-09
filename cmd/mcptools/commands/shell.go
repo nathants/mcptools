@@ -44,7 +44,7 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			mcpClient, clientErr := CreateClientFunc(parsedArgs)
+			mcpClient, clientErr := CreateClientFunc(parsedArgs, client.CloseTransportAfterExecute(false))
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
