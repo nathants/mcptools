@@ -67,12 +67,13 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 	if sendErr := t.sendRequest(stdin, request); sendErr != nil {
 		return nil, sendErr
 	}
-	_ = stdin.Close()
 
 	response, err := t.readResponse(stdout)
 	if err != nil {
 		return nil, err
 	}
+
+	_ = stdin.Close()
 
 	// Wait for the command to finish with a timeout to prevent zombie processes
 	done := make(chan error, 1)
