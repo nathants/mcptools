@@ -22,6 +22,17 @@ type Client struct {
 // configuration.
 type Option func(*Client)
 
+// CloseTransportAfterExecute allows keeping a transport alive if supported by
+// the transport.
+func CloseTransportAfterExecute(closeTransport bool) Option {
+	return func(c *Client) {
+		t, ok := c.transport.(interface{ SetCloseAfterExecute(bool) })
+		if ok {
+			t.SetCloseAfterExecute(closeTransport)
+		}
+	}
+}
+
 // NewWithTransport creates a new MCP client using the provided transport.
 // This allows callers to provide a custom transport implementation.
 func NewWithTransport(t transport.Transport) *Client {

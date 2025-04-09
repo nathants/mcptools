@@ -14,6 +14,7 @@ import (
 // Stdio implements the Transport interface by executing a command
 // and communicating with it via stdin/stdout using JSON-RPC.
 type Stdio struct {
+	process *stdioProcess
 	command []string
 	nextID  int
 	debug   bool
@@ -38,15 +39,30 @@ func NewStdio(command []string) *Stdio {
 	}
 }
 
+// SetCloseAfterExecute toggles whether the underlying process should be closed
+// or kept alive after each call to Execute.
+func (t *Stdio) SetCloseAfterExecute(v bool) {
+	if v {
+		t.process = nil
+	} else {
+		t.process = &stdioProcess{}
+	}
+}
+
 // Execute implements the Transport interface by spawning a subprocess
 // and communicating with it via JSON-RPC over stdin/stdout.
 func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
-	process := &stdioProcess{}
+	process := t.process
+	if process == nil {
+		process = &stdioProcess{}
+	}
 
-	var err error
-	process.stdin, process.stdout, process.cmd, process.stderrBuf, err = t.setupCommand()
-	if err != nil {
-		return nil, err
+	if process.cmd == nil {
+		var err error
+		process.stdin, process.stdout, process.cmd, process.stderrBuf, err = t.setupCommand()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if t.debug {
@@ -94,6 +110,10 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 
 // closeProcess waits for the command to finish, returning any error.
 func (t *Stdio) closeProcess(process *stdioProcess) error {
+	if t.process != nil {
+		return nil
+	}
+
 	_ = process.stdin.Close()
 
 	// Wait for the command to finish with a timeout to prevent zombie processes
