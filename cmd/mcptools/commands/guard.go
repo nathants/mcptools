@@ -147,7 +147,7 @@ func processPatternString(patternsStr string, patternMap map[string][]string) {
 			continue
 		}
 
-		entityType := parts[0]
+		entityType := strings.ToLower(parts[0])
 		patternValue := parts[1]
 
 		// Map entity type to known types
