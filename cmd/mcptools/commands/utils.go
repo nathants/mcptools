@@ -34,7 +34,8 @@ var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Clien
 				return client.NewHTTP(server), nil
 			}
 			cmdParts := client.ParseCommandString(server)
-			return client.NewStdio(cmdParts), nil
+			c := client.NewStdio(cmdParts, opts...)
+			return c, nil
 		}
 	}
 
@@ -42,11 +43,7 @@ var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Clien
 		return client.NewHTTP(args[0]), nil
 	}
 
-	c := client.NewStdio(args)
-
-	for _, opt := range opts {
-		opt(c)
-	}
+	c := client.NewStdio(args, opts...)
 
 	return c, nil
 }

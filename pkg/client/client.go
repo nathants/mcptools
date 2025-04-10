@@ -43,10 +43,14 @@ func NewWithTransport(t transport.Transport) *Client {
 
 // NewStdio creates a new MCP client that communicates with a command
 // via stdin/stdout using JSON-RPC.
-func NewStdio(command []string) *Client {
-	return &Client{
+func NewStdio(command []string, opts ...Option) *Client {
+	c := &Client{
 		transport: transport.NewStdio(command),
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // NewHTTP creates a MCP client that communicates with a server via HTTP using JSON-RPC.

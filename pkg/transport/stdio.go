@@ -22,10 +22,11 @@ type Stdio struct {
 
 // stdioProcess reflects the state of a running command.
 type stdioProcess struct {
-	stdin     io.WriteCloser
-	stdout    io.ReadCloser
-	cmd       *exec.Cmd
-	stderrBuf *bytes.Buffer
+	stdin            io.WriteCloser
+	stdout           io.ReadCloser
+	cmd              *exec.Cmd
+	stderrBuf        *bytes.Buffer
+	isInitializeSent bool
 }
 
 // NewStdio creates a new Stdio transport that will execute the given command.
@@ -69,14 +70,17 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 		fmt.Fprintf(os.Stderr, "DEBUG: Starting initialization\n")
 	}
 
-	if initErr := t.initialize(process.stdin, process.stdout); initErr != nil {
-		if t.debug {
-			fmt.Fprintf(os.Stderr, "DEBUG: Initialization failed: %v\n", initErr)
-			if process.stderrBuf.Len() > 0 {
-				fmt.Fprintf(os.Stderr, "DEBUG: stderr during init: %s\n", process.stderrBuf.String())
+	if !process.isInitializeSent {
+		if initErr := t.initialize(process.stdin, process.stdout); initErr != nil {
+			if t.debug {
+				fmt.Fprintf(os.Stderr, "DEBUG: Initialization failed: %v\n", initErr)
+				if process.stderrBuf.Len() > 0 {
+					fmt.Fprintf(os.Stderr, "DEBUG: stderr during init: %s\n", process.stderrBuf.String())
+				}
 			}
+			return nil, initErr
 		}
-		return nil, initErr
+		process.isInitializeSent = true
 	}
 
 	if t.debug {
