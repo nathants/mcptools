@@ -15,6 +15,11 @@ var (
 	ErrCommandRequired = fmt.Errorf("command to execute is required when using stdio transport")
 )
 
+// IsHTTP returns true if the string is a valid HTTP URL.
+func IsHTTP(str string) bool {
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+}
+
 // CreateClientFunc is the function used to create MCP clients.
 // This can be replaced in tests to use a mock transport.
 var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Client, error) {
@@ -22,15 +27,11 @@ var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Clien
 		return nil, ErrCommandRequired
 	}
 
-	isHTTP := func(str string) bool {
-		return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
-	}
-
 	// Check if the first argument is an alias
 	if len(args) == 1 {
 		server, found := alias.GetServerCommand(args[0])
 		if found {
-			if isHTTP(server) {
+			if IsHTTP(server) {
 				return client.NewHTTP(server), nil
 			}
 			cmdParts := client.ParseCommandString(server)
@@ -38,7 +39,7 @@ var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Clien
 		}
 	}
 
-	if len(args) == 1 && isHTTP(args[0]) {
+	if len(args) == 1 && IsHTTP(args[0]) {
 		return client.NewHTTP(args[0]), nil
 	}
 

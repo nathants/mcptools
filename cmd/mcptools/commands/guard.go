@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/f/mcptools/pkg/alias"
+	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/guard"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +35,7 @@ func GuardCmd() *cobra.Command {
 Examples:
   mcp guard --allow tools:read_* --deny edit_*,write_*,create_* npx run @modelcontextprotocol/server-filesystem ~
   mcp guard --allow prompts:system_* --deny tools:execute_* npx run @modelcontextprotocol/server-filesystem ~
+  mcp guard --allow tools:read_* fs  # Using an alias
   
 Patterns can include wildcards:
   * matches any sequence of characters
@@ -63,6 +66,17 @@ Entity types:
 				}
 				if len(denyPatterns[entityType]) > 0 {
 					fmt.Fprintf(os.Stderr, "Denying %s matching: %s\n", entityType, strings.Join(denyPatterns[entityType], ", "))
+				}
+			}
+
+			// Check if we're using an alias for the server command
+			if len(parsedArgs) == 1 {
+				aliasName := parsedArgs[0]
+				serverCmd, found := alias.GetServerCommand(aliasName)
+				if found {
+					fmt.Fprintf(os.Stderr, "Expanding alias '%s' to '%s'\n", aliasName, serverCmd)
+					// Replace the alias with the actual command
+					parsedArgs = client.ParseCommandString(serverCmd)
 				}
 			}
 

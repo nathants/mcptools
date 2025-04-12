@@ -314,6 +314,36 @@ func (s *FilterServer) Start(cmdArgs []string) error {
 			}
 		}
 
+		// Filter resource read requests
+		if request.Method == "resources/read" {
+			if uri, ok := request.Params["uri"].(string); ok {
+				// Extract resource name from URI (everything after the last slash or colon)
+				var name string
+				if idx := strings.LastIndexAny(uri, ":/"); idx != -1 && idx < len(uri)-1 {
+					name = uri[idx+1:]
+				} else {
+					name = uri
+				}
+
+				if !s.IsAllowed("resource", name) {
+					s.log(fmt.Sprintf("Blocked read of filtered resource: %s", name))
+					s.writeError(fmt.Errorf("resource not found: %s", uri))
+					continue
+				}
+			}
+		}
+
+		// Filter prompt get requests
+		if request.Method == "prompts/get" {
+			if name, ok := request.Params["name"].(string); ok {
+				if !s.IsAllowed("prompt", name) {
+					s.log(fmt.Sprintf("Blocked get of filtered prompt: %s", name))
+					s.writeError(fmt.Errorf("prompt not found: %s", name))
+					continue
+				}
+			}
+		}
+
 		// Forward the request to the child process
 		if err := json.NewEncoder(childCmd.Stdin).Encode(request); err != nil {
 			s.log(fmt.Sprintf("Error forwarding request to child: %v", err))

@@ -574,6 +574,8 @@ The guard mode allows you to restrict access to specific tools, prompts, and res
 - Providing read-only access to sensitive systems
 - Creating sandboxed environments for testing or demonstrations
 
+> **Note:** Guard mode currently only works with STDIO transport (command execution) and not HTTP transport.
+
 ```bash
 # Allow only file reading operations, deny file modifications
 mcp guard --allow tools:read_* --deny tools:write_*,create_*,delete_* npx -y @modelcontextprotocol/server-filesystem ~
@@ -583,6 +585,9 @@ mcp guard --allow tools:search_files npx -y @modelcontextprotocol/server-filesys
 
 # Restrict by both tool type and prompt type
 mcp guard --allow tools:read_*,prompts:system_* --deny tools:execute_* npx -y @modelcontextprotocol/server-filesystem ~
+
+# Using with aliases
+mcp guard --allow tools:read_* fs  # Where 'fs' is an alias for a filesystem server
 ```
 
 #### How It Works
@@ -591,7 +596,8 @@ The guard command works by:
 1. Creating a proxy that sits between the client and the MCP server
 2. Intercepting and filtering all requests to `tools/list`, `prompts/list`, and `resources/list`
 3. Preventing calls to tools, prompts, or resources that don't match the allowed patterns
-4. Passing through all other requests and responses unchanged
+4. Blocking requests for filtered resources, tools and prompts
+6. Passing through all other requests and responses unchanged
 
 #### Pattern Matching
 
@@ -602,8 +608,8 @@ Patterns use simple glob syntax with `*` as a wildcard:
 - `prompts:system_*` - Matches all prompts starting with "system_"
 
 For each entity type, you can specify:
-- `--allow pattern1,pattern2,...` - Only allow entities matching these patterns
-- `--deny pattern1,pattern2,...` - Remove entities matching these patterns
+- `--allow 'pattern1,pattern2,...'` - Only allow entities matching these patterns
+- `--deny 'pattern1,pattern2,...'` - Remove entities matching these patterns
 
 If no allow patterns are specified, all entities are allowed by default (except those matching deny patterns).
 
@@ -636,6 +642,20 @@ To:
 ```
 
 This provides a read-only view of the filesystem by preventing any modification operations.
+
+You can also use aliases with the guard command in configurations:
+
+```json
+"filesystem": {
+  "command": "mcp",
+  "args": [
+    "guard", "--allow", "tools:read_*,list_*,search_*",
+    "fs"  // Where 'fs' is an alias for the filesystem server
+  ]
+}
+```
+
+This makes your configurations even more concise and easier to maintain.
 
 #### Logging
 
