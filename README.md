@@ -54,6 +54,7 @@ MCP Tools provides a versatile CLI for working with Model Context Protocol (MCP)
 - Create interactive shells for exploring and using MCP servers
 - Scaffold new MCP projects with TypeScript support
 - Format output in various styles (JSON, pretty-printed, table)
+- Guard and restrict access to specific tools and resources
 - Support all transport methods (HTTP, stdio)
 
 <p align="center">
