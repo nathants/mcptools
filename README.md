@@ -579,16 +579,16 @@ The guard mode allows you to restrict access to specific tools, prompts, and res
 
 ```bash
 # Allow only file reading operations, deny file modifications
-mcp guard --allow tools:read_* --deny tools:write_*,create_*,delete_* npx -y @modelcontextprotocol/server-filesystem ~
+mcp guard --allow 'tools:read_* --deny tools:write_*,create_*,delete_*' npx -y @modelcontextprotocol/server-filesystem ~
 
 # Permit only a single specific tool
-mcp guard --allow tools:search_files npx -y @modelcontextprotocol/server-filesystem ~
+mcp guard --allow 'tools:search_files' npx -y @modelcontextprotocol/server-filesystem ~
 
 # Restrict by both tool type and prompt type
-mcp guard --allow tools:read_*,prompts:system_* --deny tools:execute_* npx -y @modelcontextprotocol/server-filesystem ~
+mcp guard --allow 'tools:read_*,prompts:system_*' --deny tools:execute_* npx -y @modelcontextprotocol/server-filesystem ~
 
 # Using with aliases
-mcp guard --allow tools:read_* fs  # Where 'fs' is an alias for a filesystem server
+mcp guard --allow 'tools:read_*' fs  # Where 'fs' is an alias for a filesystem server
 ```
 
 #### How It Works
