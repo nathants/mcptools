@@ -27,6 +27,8 @@ var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Clien
 		return nil, ErrCommandRequired
 	}
 
+	opts = append(opts, client.SetShowServerLogs(ShowServerLogs))
+
 	// Check if the first argument is an alias
 	if len(args) == 1 {
 		server, found := alias.GetServerCommand(args[0])
@@ -64,6 +66,9 @@ func ProcessFlags(args []string) []string {
 		case (args[i] == FlagFormat || args[i] == FlagFormatShort) && i+1 < len(args):
 			FormatOption = args[i+1]
 			i += 2
+		case args[i] == FlagServerLogs:
+			ShowServerLogs = true
+			i++
 		default:
 			parsedArgs = append(parsedArgs, args[i])
 			i++

@@ -166,15 +166,16 @@ mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 The default format now displays tools in a colorized man-page style:
 
 ```
-read_file(path:str, [limit:int], [offset:int])
-     Reads a file from the filesystem
-
+read_file(path:str)
+     Read the complete contents of a file from the file system.
+read_multiple_files(paths:str[])
+     Read the contents of multiple files simultaneously.
 list_dir(path:str)
-     Lists directory contents
-
+     Lists the contents of a directory.
+write_file(path:str, content:str)
+     Writes content to a file.
 grep_search(pattern:str, [excludePatterns:str[]])
-     Search files with pattern
-
+     Search files with pattern.
 edit_file(edits:{newText:str,oldText:str}[], path:str)
      Edit a file with multiple text replacements
 ```
@@ -236,7 +237,7 @@ mcp call read_file --params '{"path":"/path/to/file"}' npx -y @modelcontextproto
 mcp call resource:test://static/resource/1 npx -y @modelcontextprotocol/server-everything -f json | jq ".contents[0].text"
 ```
 
-or 
+or
 
 ```bash
 mcp read-resource test://static/resource/1 npx -y @modelcontextprotocol/server-everything -f json | jq ".contents[0].text"
@@ -247,6 +248,28 @@ mcp read-resource test://static/resource/1 npx -y @modelcontextprotocol/server-e
 ```bash
 mcp get-prompt simple_prompt npx -y @modelcontextprotocol/server-everything -f json | jq ".messages[0].content.text"
 ```
+
+#### Viewing Server Logs
+
+When using client commands that make calls to the server, you can add the `--server-logs` flag to see the server logs related to your request:
+
+```bash
+# View server logs when listing tools
+mcp tools --server-logs npx -y @modelcontextprotocol/server-filesystem ~
+```
+
+Output:
+```
+[>] Secure MCP Filesystem Server running on stdio
+[>] Allowed directories: [ '/Users/fka/' ]
+read_file(path:str)
+     Read the complete contents of a file from the file system.
+read_multiple_files(paths:str[])
+     Read the contents of multiple files simultaneously.
+... and the other tools available on this server
+```
+
+This can be helpful for debugging or understanding what's happening on the server side when executing these commands.
 
 ### Interactive Shell
 
@@ -330,7 +353,7 @@ After scaffolding, you can build and run your MCP server:
 npm install
 
 # Build the TypeScript code
-npm run build 
+npm run build
 
 # Test the server with MCP Tools
 mcp tools node build/index.js

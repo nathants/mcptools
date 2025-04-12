@@ -15,6 +15,7 @@ const (
 	FlagParamsShort = "-p"
 	FlagHelp        = "--help"
 	FlagHelpShort   = "-h"
+	FlagServerLogs  = "--server-logs"
 )
 
 // entity types.
@@ -31,6 +32,8 @@ var (
 	FormatOption = "table"
 	// ParamsString is the params for the command.
 	ParamsString string
+	// ShowServerLogs is a flag to show server logs.
+	ShowServerLogs bool
 )
 
 // RootCmd creates the root command.

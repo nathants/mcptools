@@ -8,16 +8,18 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
 // Stdio implements the Transport interface by executing a command
 // and communicating with it via stdin/stdout using JSON-RPC.
 type Stdio struct {
-	process *stdioProcess
-	command []string
-	nextID  int
-	debug   bool
+	process        *stdioProcess
+	command        []string
+	nextID         int
+	debug          bool
+	showServerLogs bool
 }
 
 // stdioProcess reflects the state of a running command.
@@ -50,6 +52,11 @@ func (t *Stdio) SetCloseAfterExecute(v bool) {
 	}
 }
 
+// SetShowServerLogs toggles whether to print server logs.
+func (t *Stdio) SetShowServerLogs(v bool) {
+	t.showServerLogs = v
+}
+
 // Execute implements the Transport interface by spawning a subprocess
 // and communicating with it via JSON-RPC over stdin/stdout.
 func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
@@ -72,14 +79,13 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 
 	if !process.isInitializeSent {
 		if initErr := t.initialize(process.stdin, process.stdout); initErr != nil {
+			t.printStderr(process)
 			if t.debug {
 				fmt.Fprintf(os.Stderr, "DEBUG: Initialization failed: %v\n", initErr)
-				if process.stderrBuf.Len() > 0 {
-					fmt.Fprintf(os.Stderr, "DEBUG: stderr during init: %s\n", process.stderrBuf.String())
-				}
 			}
 			return nil, initErr
 		}
+		t.printStderr(process)
 		process.isInitializeSent = true
 	}
 
@@ -100,16 +106,32 @@ func (t *Stdio) Execute(method string, params any) (map[string]any, error) {
 	}
 
 	response, err := t.readResponse(process.stdout)
+	t.printStderr(process)
 	if err != nil {
 		return nil, err
 	}
-
 	err = t.closeProcess(process)
 	if err != nil {
 		return nil, err
 	}
 
 	return response.Result, nil
+}
+
+// printStderr prints and clears any accumulated stderr output.
+func (t *Stdio) printStderr(process *stdioProcess) {
+	if !t.showServerLogs {
+		return
+	}
+	if process.stderrBuf.Len() > 0 {
+		for _, line := range strings.SplitAfter(process.stderrBuf.String(), "\n") {
+			line = strings.TrimSuffix(line, "\n")
+			if line != "" {
+				fmt.Fprintf(os.Stderr, "[>] %s\n", line)
+			}
+		}
+		process.stderrBuf.Reset() // Clear the buffer after reading
+	}
 }
 
 // closeProcess waits for the command to finish, returning any error.
@@ -130,13 +152,10 @@ func (t *Stdio) closeProcess(process *stdioProcess) error {
 	case waitErr := <-done:
 		if t.debug {
 			fmt.Fprintf(os.Stderr, "DEBUG: Command completed with err: %v\n", waitErr)
-			if process.stderrBuf.Len() > 0 {
-				fmt.Fprintf(os.Stderr, "DEBUG: stderr output:\n%s\n", process.stderrBuf.String())
-			}
 		}
 
 		if waitErr != nil && process.stderrBuf.Len() > 0 {
-			return fmt.Errorf("command error: %w, stderr: %s", waitErr, process.stderrBuf.String())
+			return fmt.Errorf("command error: %w", waitErr)
 		}
 	case <-time.After(1 * time.Second):
 		if t.debug {

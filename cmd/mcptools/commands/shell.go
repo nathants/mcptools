@@ -30,10 +30,14 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 			parsedArgs := []string{}
 
 			for i := 0; i < len(cmdArgs); i++ {
-				if (cmdArgs[i] == FlagFormat || cmdArgs[i] == FlagFormatShort) && i+1 < len(cmdArgs) {
+				switch {
+				case (cmdArgs[i] == FlagFormat || cmdArgs[i] == FlagFormatShort) && i+1 < len(cmdArgs):
 					FormatOption = cmdArgs[i+1]
 					i++
-				} else {
+				case cmdArgs[i] == FlagServerLogs:
+					ShowServerLogs = true
+					i++
+				default:
 					parsedArgs = append(parsedArgs, cmdArgs[i])
 				}
 			}

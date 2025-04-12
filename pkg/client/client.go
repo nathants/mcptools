@@ -33,6 +33,16 @@ func CloseTransportAfterExecute(closeTransport bool) Option {
 	}
 }
 
+// SetShowServerLogs sets whether to show server logs.
+func SetShowServerLogs(showLogs bool) Option {
+	return func(c *Client) {
+		t, ok := c.transport.(interface{ SetShowServerLogs(bool) })
+		if ok {
+			t.SetShowServerLogs(showLogs)
+		}
+	}
+}
+
 // NewWithTransport creates a new MCP client using the provided transport.
 // This allows callers to provide a custom transport implementation.
 func NewWithTransport(t transport.Transport) *Client {
