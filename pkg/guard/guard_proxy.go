@@ -16,7 +16,7 @@ type FilterServer struct {
 	allowPatterns map[string][]string
 	denyPatterns  map[string][]string
 	logFile       *os.File
-	id            int
+	requestID     int
 }
 
 // NewFilterServer creates a new filter server.
@@ -52,7 +52,7 @@ func NewFilterServer(allowPatterns, denyPatterns map[string][]string) (*FilterSe
 	return &FilterServer{
 		allowPatterns: allowPatterns,
 		denyPatterns:  denyPatterns,
-		id:            0,
+		requestID:     0,
 		logFile:       logFile,
 	}, nil
 }
@@ -294,7 +294,7 @@ func (s *FilterServer) Start(cmdArgs []string) error {
 		// Log the incoming request
 		s.logJSON("Received request", request)
 		fmt.Fprintf(os.Stderr, "Received request: %s (ID: %d)\n", request.Method, request.ID)
-		s.id = request.ID
+		s.requestID = request.ID
 
 		// Handle notifications (methods without an ID)
 		if request.Method == "notifications/initialized" {
@@ -392,7 +392,7 @@ func (s *FilterServer) writeError(err error) {
 
 	response := map[string]interface{}{
 		"jsonrpc": "2.0",
-		"id":      s.id,
+		"id":      s.requestID,
 		"error": map[string]interface{}{
 			"code":    code,
 			"message": err.Error(),
