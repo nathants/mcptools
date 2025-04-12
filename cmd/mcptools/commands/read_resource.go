@@ -24,7 +24,7 @@ func ReadResourceCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: resource name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~",
+					"Example: mcp read-resource test://static/resource/1 npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}
@@ -58,7 +58,7 @@ func ReadResourceCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "Error: resource name is required")
 				fmt.Fprintln(
 					os.Stderr,
-					"Example: mcp read-resource npx -y @modelcontextprotocol/server-filesystem ~",
+					"Example: mcp read-resource test://static/resource/1 npx -y @modelcontextprotocol/server-filesystem ~",
 				)
 				os.Exit(1)
 			}

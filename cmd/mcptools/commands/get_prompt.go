@@ -45,6 +45,9 @@ func GetPromptCmd() *cobra.Command {
 				case (cmdArgs[i] == FlagParams || cmdArgs[i] == FlagParamsShort) && i+1 < len(cmdArgs):
 					ParamsString = cmdArgs[i+1]
 					i += 2
+				case cmdArgs[i] == FlagServerLogs:
+					ShowServerLogs = true
+					i++
 				case !promptExtracted:
 					promptName = cmdArgs[i]
 					promptExtracted = true

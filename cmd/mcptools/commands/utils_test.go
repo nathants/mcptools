@@ -21,42 +21,56 @@ func TestProcessFlags(t *testing.T) {
 		args       []string
 		wantArgs   []string
 		wantFormat string
+		showLogs   bool
 	}{
 		{
 			name:       "no flags",
 			args:       []string{"cmd", "arg1", "arg2"},
 			wantArgs:   []string{"cmd", "arg1", "arg2"},
 			wantFormat: "",
+			showLogs:   false,
 		},
 		{
 			name:       "with long format flag",
 			args:       []string{"cmd", "--format", "json", "arg1"},
 			wantArgs:   []string{"cmd", "arg1"},
 			wantFormat: "json",
+			showLogs:   false,
 		},
 		{
 			name:       "with short format flag",
 			args:       []string{"cmd", "-f", "pretty", "arg1"},
 			wantArgs:   []string{"cmd", "arg1"},
 			wantFormat: "pretty",
+			showLogs:   false,
 		},
 		{
 			name:       "with format flag at end",
 			args:       []string{"cmd", "arg1", "--format", "table"},
 			wantArgs:   []string{"cmd", "arg1"},
 			wantFormat: "table",
+			showLogs:   false,
 		},
 		{
 			name:       "with invalid format option",
 			args:       []string{"cmd", "--format", "invalid", "arg1"},
 			wantArgs:   []string{"cmd", "arg1"},
 			wantFormat: "invalid",
+			showLogs:   false,
 		},
 		{
 			name:       "with format flag without value",
 			args:       []string{"cmd", "--format", "json"},
 			wantArgs:   []string{"cmd"},
 			wantFormat: "json",
+			showLogs:   false,
+		},
+		{
+			name:       "with server logs flag",
+			args:       []string{"cmd", "--server-logs", "arg1"},
+			wantArgs:   []string{"cmd", "arg1"},
+			wantFormat: "",
+			showLogs:   true,
 		},
 	}
 
