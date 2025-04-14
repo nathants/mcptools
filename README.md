@@ -28,6 +28,7 @@
   - [Output Formats](#output-formats)
   - [Commands](#commands)
   - [Interactive Shell](#interactive-shell)
+  - [Web Interface](#web-interface)
   - [Project Scaffolding](#project-scaffolding)
 - [Server Aliases](#server-aliases)
 - [LLM Apps Config Management](#llm-apps-config-management)
@@ -112,6 +113,7 @@ Available Commands:
   get-prompt    Get a prompt on the MCP server
   read-resource Read a resource on the MCP server
   shell         Start an interactive shell for MCP commands
+  web           Start a web interface for MCP commands
   mock          Create a mock MCP server with tools, prompts, and resources
   proxy         Proxy MCP tool requests to shell scripts
   alias         Manage MCP server aliases
@@ -319,6 +321,36 @@ Special Commands:
   /h, /help                  Show this help
   /q, /quit, exit            Exit the shell
 ```
+
+### Web Interface
+
+MCP Tools provides a web interface for interacting with MCP servers through a browser-based UI:
+
+```bash
+# Start a web interface for a filesystem server on default port (41999)
+mcp web npx -y @modelcontextprotocol/server-filesystem ~
+
+# Use a custom port
+mcp web --port 8080 docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
+
+# Use SSE
+mcp web https://ne.tools
+```
+
+The web interface includes:
+
+- A sidebar listing all available tools, resources, and prompts
+- Form-based and JSON-based parameter editing 
+- Formatted and raw JSON response views
+- Interactive parameter forms automatically generated from tool schemas
+- Support for complex parameter types (arrays, objects, nested structures)
+- Direct API access for tool calling
+
+Once started, you can access the interface by opening `http://localhost:41999` (or your custom port) in a browser.
+
+<p align="center">
+  <img src=".github/resources/web-interface.png" alt="MCP Web Interface" width="700">
+</p>
 
 ### Project Scaffolding
 

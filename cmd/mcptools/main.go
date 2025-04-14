@@ -34,6 +34,7 @@ func main() {
 		commands.GetPromptCmd(),
 		commands.ReadResourceCmd(),
 		commands.ShellCmd(),
+		commands.WebCmd(),
 		commands.MockCmd(),
 		commands.ProxyCmd(),
 		commands.AliasCmd(),

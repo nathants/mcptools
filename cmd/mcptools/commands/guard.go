@@ -165,6 +165,7 @@ func processPatternString(patternsStr string, patternMap map[string][]string) {
 		patternValue := parts[1]
 
 		// Map entity type to known types
+		//nolint:goconst // Using literals directly for readability
 		switch entityType {
 		case "tool", "tools":
 			patternMap[EntityTypeTool] = append(patternMap[EntityTypeTool], patternValue)
