@@ -331,7 +331,10 @@ MCP Tools provides a web interface for interacting with MCP servers through a br
 mcp web npx -y @modelcontextprotocol/server-filesystem ~
 
 # Use a custom port
-mcp web --port 8080 npx -y @modelcontextprotocol/server-filesystem ~
+mcp web --port 8080 docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
+
+# Use SSE
+mcp web https://ne.tools
 ```
 
 The web interface includes:
