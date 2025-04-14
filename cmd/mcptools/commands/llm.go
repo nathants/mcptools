@@ -11,25 +11,43 @@ import (
 	"strings"
 	"time"
 
+	"github.com/f/mcptools/pkg/alias"
 	"github.com/f/mcptools/pkg/client"
+	"github.com/fatih/color"
 	"github.com/peterh/liner"
 	"github.com/spf13/cobra"
 )
 
 const (
-	// LLMProviderOpenAI is the identifier for OpenAI
+	// LLMProviderOpenAI is the identifier for OpenAI.
 	LLMProviderOpenAI = "openai"
-	// LLMProviderAnthropic is the identifier for Anthropic
+	// LLMProviderAnthropic is the identifier for Anthropic.
 	LLMProviderAnthropic = "anthropic"
-	// LLMProviderMistral is the identifier for Mistral
-	LLMProviderMistral = "mistral"
+	// MaxServers is the maximum number of servers allowed.
+	MaxServers = 3
 )
 
-// Tool represents a tool available to the LLM
+// Terminal colors for UI elements.
+var (
+	// Color for MCP messages.
+	mcpColor = color.New(color.FgCyan).Add(color.Bold)
+	// Color for agent responses.
+	agentColor = color.New(color.FgMagenta)
+	// Color for tool calls.
+	toolCallColor = color.New(color.FgYellow).Add(color.Bold)
+	// Color for tool results.
+	toolResultColor = color.New(color.FgBlue)
+	// Color for errors.
+	errorColor = color.New(color.FgRed).Add(color.Bold)
+	// Color for server information.
+	serverColor = color.New(color.FgHiCyan)
+)
+
+// Tool represents a tool available to the LLM.
 type Tool struct {
+	Parameters  map[string]interface{} `json:"parameters"`
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
-	Parameters  map[string]interface{} `json:"parameters"`
 }
 
 // LLMCmd creates the llm command.
@@ -37,6 +55,8 @@ func LLMCmd() *cobra.Command {
 	var providerFlag string
 	var modelFlag string
 	var apiKeyFlag string
+	var multiServerFlags []string
+	var noColorFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "llm [command args...]",
@@ -47,13 +67,52 @@ The LLM can execute MCP tools on your behalf.
 
 Example usage:
   mcp llm npx -y @modelcontextprotocol/server-filesystem ~
-  mcp llm npx -y @modelcontextprotocol/server-filesystem ~ --provider anthropic
-  mcp llm npx -y @modelcontextprotocol/server-filesystem ~ --model gpt-4-turbo`,
+  mcp llm -M https://ne.tools -M "npx -y @modelcontextprotocol/server-filesystem ~"
+  mcp llm --provider anthropic --model claude-3-opus-20240229`,
 		DisableFlagParsing: false,
 		SilenceUsage:       true,
 		RunE: func(thisCmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("command to execute is required when using llm")
+			// If no-color flag is set, disable colors
+			if noColorFlag {
+				color.NoColor = true
+			}
+
+			// Collect server commands to connect to
+			var serverCommands [][]string
+
+			// If -M/--multi flags are provided, use those
+			if len(multiServerFlags) > 0 {
+				// Check max servers limit
+				if len(multiServerFlags) > MaxServers {
+					return fmt.Errorf("maximum of %d servers allowed, got %d", MaxServers, len(multiServerFlags))
+				}
+
+				// Process each server flag
+				for _, serverFlag := range multiServerFlags {
+					// Check if it's an alias
+					if aliasCmd, found := alias.GetServerCommand(serverFlag); found {
+						// It's an alias, use the command from the alias
+						serverCommands = append(serverCommands, client.ParseCommandString(aliasCmd))
+					} else {
+						// Not an alias, parse it as a command
+						serverCommands = append(serverCommands, client.ParseCommandString(serverFlag))
+					}
+				}
+			} else if len(args) > 0 {
+				// Legacy mode - use positional args for the server command
+				// Check if it's an alias
+				if aliasCmd, found := alias.GetServerCommand(args[0]); found && len(args) == 1 {
+					// It's an alias, use the command from the alias
+					serverCommands = append(serverCommands, client.ParseCommandString(aliasCmd))
+				} else {
+					// Not an alias, use the args directly
+					serverCommands = append(serverCommands, args)
+				}
+			}
+
+			// If no server commands, error out
+			if len(serverCommands) == 0 {
+				return fmt.Errorf("at least one server command is required")
 			}
 
 			// Set default provider and model
@@ -70,8 +129,6 @@ Example usage:
 					model = "gpt-4o"
 				case LLMProviderAnthropic:
 					model = "claude-3-opus-20240229"
-				case LLMProviderMistral:
-					model = "mistral-large-latest"
 				}
 			}
 
@@ -83,8 +140,6 @@ Example usage:
 					apiKey = os.Getenv("OPENAI_API_KEY")
 				case LLMProviderAnthropic:
 					apiKey = os.Getenv("ANTHROPIC_API_KEY")
-				case LLMProviderMistral:
-					apiKey = os.Getenv("MISTRAL_API_KEY")
 				}
 			}
 
@@ -92,22 +147,51 @@ Example usage:
 				return fmt.Errorf("no API key provided for %s. Please set the appropriate environment variable or use --api-key", provider)
 			}
 
-			// Create the MCP client
-			mcpClient, clientErr := CreateClientFunc(args, client.CloseTransportAfterExecute(false))
-			if clientErr != nil {
-				return fmt.Errorf("error creating MCP client: %v", clientErr)
-			}
+			// Create MCP clients for each server
+			var mcpClients []*client.Client
+			var allTools []Tool
 
-			// Verify the connection to the MCP server
-			toolsResp, listErr := mcpClient.ListTools()
-			if listErr != nil {
-				return fmt.Errorf("error connecting to MCP server: %v", listErr)
-			}
+			// Print colorful header
+			mcpColor.Fprintf(thisCmd.OutOrStdout(), "mcp > MCP LLM Shell (%s)\n", Version)
 
-			// Extract and format tools for LLM function/tool calling
-			tools, err := formatToolsForLLM(toolsResp)
-			if err != nil {
-				return fmt.Errorf("error formatting tools: %v", err)
+			// Connect to each server and collect tools
+			for i, serverCmd := range serverCommands {
+				serverColor.Fprintf(thisCmd.OutOrStdout(), "mcp > Connecting to server %d: %s\n", i+1, strings.Join(serverCmd, " "))
+
+				mcpClient, clientErr := CreateClientFunc(serverCmd, client.CloseTransportAfterExecute(false))
+				if clientErr != nil {
+					errorColor.Fprintf(os.Stderr, "Error creating MCP client for server %d: %v\n", i+1, clientErr)
+					return fmt.Errorf("error creating MCP client for server %d: %w", i+1, clientErr)
+				}
+
+				// Verify the connection to the MCP server
+				toolsResp, listErr := mcpClient.ListTools()
+				if listErr != nil {
+					errorColor.Fprintf(os.Stderr, "Error connecting to MCP server %d: %v\n", i+1, listErr)
+					return fmt.Errorf("error connecting to MCP server %d: %w", i+1, listErr)
+				}
+
+				// Extract and format tools for LLM function/tool calling
+				serverTools, err := formatToolsForLLM(toolsResp)
+				if err != nil {
+					errorColor.Fprintf(os.Stderr, "Error formatting tools from server %d: %v\n", i+1, err)
+					return fmt.Errorf("error formatting tools from server %d: %w", i+1, err)
+				}
+
+				// Tag tools with server prefix to avoid name collisions
+				prefix := fmt.Sprintf("s%d_", i+1)
+				for j := range serverTools {
+					// Update tool name with server prefix
+					serverTools[j].Name = prefix + serverTools[j].Name
+					// Add server ID to description
+					serverTools[j].Description = fmt.Sprintf("[Server %d] %s", i+1, serverTools[j].Description)
+				}
+
+				serverColor.Fprintf(thisCmd.OutOrStdout(), "mcp > Server %d: Registered %d tools\n", i+1, len(serverTools))
+
+				// Store client and tools
+				mcpClients = append(mcpClients, mcpClient)
+				allTools = append(allTools, serverTools...)
 			}
 
 			// Get the username for the prompt
@@ -118,19 +202,18 @@ Example usage:
 				username = u
 			}
 
-			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > MCP LLM Shell (%s)\n", Version)
-			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Connected to Server: %s\n", strings.Join(args, " "))
-			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Using provider: %s, model: %s\n", provider, model)
-			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Registered %d tools with the LLM\n", len(tools))
-			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Type 'exit' to quit\n\n")
+			mcpColor.Fprintf(thisCmd.OutOrStdout(), "mcp > Using provider: %s, model: %s\n", provider, model)
+			mcpColor.Fprintf(thisCmd.OutOrStdout(), "mcp > Total registered tools: %d\n", len(allTools))
+			mcpColor.Fprintf(thisCmd.OutOrStdout(), "mcp > Type 'exit' to quit\n\n")
 
 			// Initialize chat session with a special message type for proper handling
 			messages := []map[string]interface{}{
 				{
 					"role": "system",
-					"content": `You are a helpful AI assistant with access to tools.
+					"content": fmt.Sprintf(`You are a helpful AI assistant with access to tools from %d different servers.
+Tools from each server are prefixed with "s<server_number>_". For example, tools from server 1 are prefixed with "s1_".
 Use these tools when appropriate to perform actions for the user.
-Be concise, accurate, and helpful.`,
+Be concise, accurate, and helpful.`, len(serverCommands)),
 				},
 			}
 
@@ -157,19 +240,29 @@ Be concise, accurate, and helpful.`,
 				return
 			})
 
+			// Custom writer that colorizes agent output
+			agentWriter := &colorWriter{
+				out:       thisCmd.OutOrStdout(),
+				baseColor: agentColor,
+			}
+
 			// Start interactive chat loop
 			for {
 				// Create prompt with username
 				prompt := fmt.Sprintf("%s > ", username)
 
 				// Use liner to get input with history and editing
+				// Apply color to prompt (need to temporarily disable for liner)
+				color.NoColor = true // Disable color for prompt to avoid liner issues
 				input, err := line.Prompt(prompt)
+				color.NoColor = noColorFlag // Restore color setting
+
 				if err != nil {
 					if err == liner.ErrPromptAborted {
-						fmt.Fprintf(thisCmd.OutOrStdout(), "\nExiting LLM shell\n")
+						mcpColor.Fprintf(thisCmd.OutOrStdout(), "\nExiting LLM shell\n")
 						break
 					}
-					fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+					errorColor.Fprintf(os.Stderr, "Error reading input: %v\n", err)
 					break
 				}
 
@@ -183,7 +276,7 @@ Be concise, accurate, and helpful.`,
 
 				// Check for exit commands
 				if input == "exit" || input == "quit" {
-					fmt.Fprintf(thisCmd.OutOrStdout(), "Exiting LLM shell\n")
+					mcpColor.Fprintf(thisCmd.OutOrStdout(), "Exiting LLM shell\n")
 					break
 				}
 
@@ -194,10 +287,10 @@ Be concise, accurate, and helpful.`,
 				})
 
 				// Call the LLM API and stream the response
-				fmt.Print("agent > ")
-				responseMessages, err := callLLMWithTools(provider, model, apiKey, messages, tools, mcpClient, thisCmd.OutOrStdout())
+				agentColor.Fprintf(thisCmd.OutOrStdout(), "agent > ")
+				responseMessages, err := callLLMWithMultipleTools(provider, model, apiKey, messages, allTools, mcpClients, agentWriter)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "\nError calling LLM: %v\n", err)
+					errorColor.Fprintf(os.Stderr, "\nError calling LLM: %v\n", err)
 					continue
 				}
 
@@ -214,15 +307,29 @@ Be concise, accurate, and helpful.`,
 	cmd.Flags().StringVar(&providerFlag, "provider", "", "LLM provider (openai, anthropic, mistral)")
 	cmd.Flags().StringVar(&modelFlag, "model", "", "The model to use")
 	cmd.Flags().StringVar(&apiKeyFlag, "api-key", "", "API key for the LLM provider")
+	cmd.Flags().StringArrayVarP(&multiServerFlags, "multi", "M", nil, "Multiple server commands to connect to (max 3)")
+	cmd.Flags().BoolVar(&noColorFlag, "no-color", false, "Disable colored output")
 
 	return cmd
 }
 
-// setupHistory sets up command history for the liner
+// colorWriter is a custom io.Writer that colorizes output.
+type colorWriter struct {
+	out       io.Writer
+	baseColor *color.Color
+}
+
+// Write implements io.Writer.
+func (cw *colorWriter) Write(p []byte) (n int, err error) {
+	// Use the color to write the output
+	return cw.baseColor.Fprint(cw.out, string(p))
+}
+
+// setupHistory sets up command history for the liner.
 func setupHistory(line *liner.State) func() {
 	// Create history directory if it doesn't exist
 	historyDir := filepath.Join(os.Getenv("HOME"), ".config", "mcp")
-	_ = os.MkdirAll(historyDir, 0755)
+	_ = os.MkdirAll(historyDir, 0o755)
 
 	// History file path
 	historyFile := filepath.Join(historyDir, ".mcp_llm_history")
@@ -242,7 +349,7 @@ func setupHistory(line *liner.State) func() {
 	}
 }
 
-// formatToolsForLLM converts MCP tools to a format suitable for LLM function calling
+// formatToolsForLLM converts MCP tools to a format suitable for LLM function calling.
 func formatToolsForLLM(toolsResp map[string]interface{}) ([]Tool, error) {
 	toolsData, ok := toolsResp["tools"]
 	if !ok {
@@ -266,73 +373,113 @@ func formatToolsForLLM(toolsResp map[string]interface{}) ([]Tool, error) {
 
 		// Extract parameters from schema if available
 		var parameters map[string]interface{}
-		if schema, ok := toolMap["schema"].(map[string]interface{}); ok {
-			if props, ok := schema["properties"].(map[string]interface{}); ok {
-				parameters = map[string]interface{}{
-					"type":       "object",
-					"properties": props,
-				}
 
-				// Add required fields if available
-				if required, ok := schema["required"].([]interface{}); ok {
-					var requiredArr []string
-					for _, r := range required {
-						if s, ok := r.(string); ok {
-							requiredArr = append(requiredArr, s)
+		// Try inputSchema first, then fall back to schema for backward compatibility
+		var schema map[string]interface{}
+		if inputSchema, ok := toolMap["inputSchema"].(map[string]interface{}); ok {
+			schema = inputSchema
+		} else if oldSchema, ok := toolMap["schema"].(map[string]interface{}); ok {
+			schema = oldSchema
+		}
+
+		if schema != nil {
+			if props, ok := schema["properties"].(map[string]interface{}); ok && len(props) > 0 {
+				// Deep copy the properties and ensure descriptions are included
+				propsCopy := make(map[string]interface{})
+				for propName, propValue := range props {
+					propMap, ok := propValue.(map[string]interface{})
+					if !ok {
+						// If propValue is not a map, create a simple type object
+						propsCopy[propName] = map[string]interface{}{
+							"type":        "string",
+							"description": fmt.Sprintf("%s parameter", propName),
+						}
+						continue
+					}
+
+					// Ensure all property attributes are copied correctly
+					propMapCopy := make(map[string]interface{})
+					for k, v := range propMap {
+						propMapCopy[k] = v
+					}
+
+					// Ensure type is present and valid
+					if _, hasType := propMapCopy["type"]; !hasType {
+						propMapCopy["type"] = "string"
+					}
+
+					// Ensure arrays have items defined
+					if propType, ok := propMapCopy["type"].(string); ok && propType == "array" {
+						if _, hasItems := propMapCopy["items"]; !hasItems {
+							propMapCopy["items"] = map[string]interface{}{
+								"type": "string",
+							}
 						}
 					}
-					parameters["required"] = requiredArr
+
+					// Ensure description exists
+					if _, hasDesc := propMapCopy["description"]; !hasDesc {
+						propMapCopy["description"] = fmt.Sprintf("%s parameter", propName)
+					}
+
+					propsCopy[propName] = propMapCopy
+				}
+
+				// Only add parameters if there are properties
+				if len(propsCopy) > 0 {
+					parameters = map[string]interface{}{
+						"type":       "object",
+						"properties": propsCopy,
+					}
+
+					// Add required fields if available
+					if required, ok := schema["required"].([]interface{}); ok {
+						var requiredArr []string
+						for _, r := range required {
+							if s, ok := r.(string); ok {
+								requiredArr = append(requiredArr, s)
+							}
+						}
+						parameters["required"] = requiredArr
+					}
 				}
 			}
 		}
 
-		// If no parameters defined, use empty object
-		if parameters == nil {
-			parameters = map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
+		// Only create a tool if we have a name
+		if name != "" {
+			tool := Tool{
+				Name:        name,
+				Description: description,
 			}
-		}
 
-		tools = append(tools, Tool{
-			Name:        name,
-			Description: description,
-			Parameters:  parameters,
-		})
+			// Only add parameters if they exist
+			if parameters != nil {
+				tool.Parameters = parameters
+			}
+
+			tools = append(tools, tool)
+		}
 	}
 
 	return tools, nil
 }
 
-// callLLMWithTools calls the LLM API with tools support, processes tool calls, and returns all generated messages
-func callLLMWithTools(provider, model, apiKey string, messages []map[string]interface{}, tools []Tool, mcpClient *client.Client, out io.Writer) ([]map[string]interface{}, error) {
+// callLLMWithMultipleTools calls the LLM with tools from multiple servers.
+func callLLMWithMultipleTools(provider, model, apiKey string, messages []map[string]interface{}, tools []Tool, clients []*client.Client, out io.Writer) ([]map[string]interface{}, error) {
+	// Modified function to handle tool calls from multiple servers
 	switch provider {
 	case LLMProviderOpenAI:
-		return callOpenAIWithTools(model, apiKey, messages, tools, mcpClient, out)
+		return callOpenAIWithMultipleTools(model, apiKey, messages, tools, clients, out)
 	case LLMProviderAnthropic:
-		return callAnthropicWithTools(model, apiKey, messages, tools, mcpClient, out)
-	case LLMProviderMistral:
-		return callMistralWithTools(model, apiKey, messages, tools, mcpClient, out)
+		return callAnthropicWithMultipleTools(model, apiKey, messages, tools, clients, out)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
 }
 
-// convertMessages converts between different message formats if needed
-func convertMessages(messages []map[string]interface{}) []map[string]interface{} {
-	convertedMessages := make([]map[string]interface{}, 0, len(messages))
-	for _, msg := range messages {
-		convertedMsg := make(map[string]interface{})
-		for k, v := range msg {
-			convertedMsg[k] = v
-		}
-		convertedMessages = append(convertedMessages, convertedMsg)
-	}
-	return convertedMessages
-}
-
-// callOpenAIWithTools calls OpenAI API with tools support
-func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}, tools []Tool, mcpClient *client.Client, out io.Writer) ([]map[string]interface{}, error) {
+// callOpenAIWithMultipleTools calls OpenAI API with tools from multiple servers.
+func callOpenAIWithMultipleTools(model, apiKey string, messages []map[string]interface{}, tools []Tool, clients []*client.Client, out io.Writer) ([]map[string]interface{}, error) {
 	var responseMessages []map[string]interface{}
 	var fullContent strings.Builder
 
@@ -363,12 +510,12 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %v", err)
+		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(requestBody)))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -377,7 +524,7 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -390,6 +537,7 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 
 	var toolCalls []map[string]interface{}
 	var assistantMessage map[string]interface{}
+	var toolCallsComplete bool
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -481,7 +629,9 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 											// If this is the first time we're seeing the name, print it
 											currentName, _ := toolCall["name"].(string)
 											if currentName == name {
-												fmt.Fprintf(out, "[Calling %s", name)
+												// Switch to tool call color
+												fmt.Fprint(out, "\n")
+												toolCallColor.Fprintf(color.Output, "[Calling %s", name)
 											}
 										}
 
@@ -497,62 +647,10 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 							}
 						}
 
-						// Check if done with tool calls and need to execute them
+						// Check if done with tool calls
 						if finish, ok := choice["finish_reason"].(string); ok && finish == "tool_calls" {
-							// Process and execute all tool calls
-							fmt.Fprint(out, "]")
-
-							// First add the assistant message to our responses with proper tool_calls
-							responseMessages = append(responseMessages, assistantMessage)
-
-							// Now handle each tool call and execute it
-							var toolResponses []map[string]interface{}
-							for _, toolCall := range toolCalls {
-								functionData := toolCall["function"].(map[string]interface{})
-								toolName := functionData["name"].(string)
-								toolArgsStr := functionData["arguments"].(string)
-
-								var toolArgs map[string]interface{}
-								if err := json.Unmarshal([]byte(toolArgsStr), &toolArgs); err != nil {
-									fmt.Fprintf(out, "\nmcp > Error parsing tool arguments: %v\n", err)
-									continue
-								}
-
-								// Execute tool
-								fmt.Fprintf(out, "\nmcp > [running %s with params %s]\n", toolName, toolArgsStr)
-
-								result, err := mcpClient.CallTool(toolName, toolArgs)
-								if err != nil {
-									fmt.Fprintf(out, "mcp > Error executing tool: %v\n", err)
-									toolResponses = append(toolResponses, map[string]interface{}{
-										"role":         "tool",
-										"tool_call_id": toolCall["id"].(string),
-										"content":      fmt.Sprintf("Error: %v", err),
-									})
-								} else {
-									// Format result as JSON
-									resultBytes, _ := json.MarshalIndent(result, "", "  ")
-									resultStr := string(resultBytes)
-
-									fmt.Fprint(out, resultStr+"\n")
-
-									toolResponses = append(toolResponses, map[string]interface{}{
-										"role":         "tool",
-										"tool_call_id": toolCall["id"].(string),
-										"content":      resultStr,
-									})
-								}
-							}
-
-							// Add all tool responses
-							responseMessages = append(responseMessages, toolResponses...)
-
-							// Make another call to get the AI's final response after tools
-							finalMessages, err := callOpenAIFinalResponse(model, apiKey, append(messages, responseMessages...), out)
-							if err != nil {
-								return nil, err
-							}
-							return append(responseMessages, finalMessages...), nil
+							toolCallsComplete = true
+							break
 						}
 					}
 				}
@@ -561,7 +659,101 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
+	}
+
+	// Process and execute tool calls if we have any
+	if toolCallsComplete && len(toolCalls) > 0 {
+		// Close the tool call display
+		toolCallColor.Fprint(color.Output, "]")
+
+		// First add the assistant message to our responses with proper tool_calls
+		responseMessages = append(responseMessages, assistantMessage)
+
+		// Now handle each tool call and execute it
+		var toolResponses []map[string]interface{}
+
+		for _, toolCall := range toolCalls {
+			functionData := toolCall["function"].(map[string]interface{})
+			toolName, _ := functionData["name"].(string)
+			toolArgsStr, _ := functionData["arguments"].(string)
+
+			var toolArgs map[string]interface{}
+			if err := json.Unmarshal([]byte(toolArgsStr), &toolArgs); err != nil {
+				errorColor.Fprintf(color.Output, "\nmcp > Error parsing tool arguments: %v\n", err)
+				toolResponses = append(toolResponses, map[string]interface{}{
+					"role":         "tool",
+					"tool_call_id": toolCall["id"].(string),
+					"content":      fmt.Sprintf("Error parsing arguments: %v", err),
+				})
+				continue
+			}
+
+			// Extract server ID from tool name (e.g., "s1_read_file" -> serverIdx = 0)
+			var serverIdx int
+			var baseToolName string
+
+			if len(toolName) >= 3 && toolName[0] == 's' && toolName[2] == '_' {
+				serverChar := toolName[1]
+				if serverChar >= '1' && serverChar <= '9' {
+					serverIdx = int(serverChar - '1')
+					baseToolName = toolName[3:]
+				} else {
+					baseToolName = toolName
+				}
+			} else {
+				baseToolName = toolName
+			}
+
+			// Check if the server index is valid
+			if serverIdx < 0 || serverIdx >= len(clients) {
+				errorColor.Fprintf(color.Output, "\nmcp > Error: Invalid server index in tool name: %s\n", toolName)
+				toolResponses = append(toolResponses, map[string]interface{}{
+					"role":         "tool",
+					"tool_call_id": toolCall["id"].(string),
+					"content":      fmt.Sprintf("Error: Invalid server index in tool name: %s", toolName),
+				})
+				continue
+			}
+
+			// Execute tool on the appropriate server
+			mcpColor.Fprintf(color.Output, "\nmcp > ")
+			toolCallColor.Fprintf(color.Output, "[Server %d running %s", serverIdx+1, baseToolName)
+			serverColor.Fprintf(color.Output, " with params %s]\n", toolArgsStr)
+
+			result, err := clients[serverIdx].CallTool(baseToolName, toolArgs)
+			if err != nil {
+				errorColor.Fprintf(color.Output, "mcp > Error executing tool: %v\n", err)
+				toolResponses = append(toolResponses, map[string]interface{}{
+					"role":         "tool",
+					"tool_call_id": toolCall["id"].(string),
+					"content":      fmt.Sprintf("Error: %v", err),
+				})
+			} else {
+				// Format result as JSON
+				resultBytes, _ := json.MarshalIndent(result, "", "  ")
+				resultStr := string(resultBytes)
+
+				toolResultColor.Fprintf(color.Output, "%s\n", resultStr)
+
+				toolResponses = append(toolResponses, map[string]interface{}{
+					"role":         "tool",
+					"tool_call_id": toolCall["id"].(string),
+					"content":      resultStr,
+				})
+			}
+		}
+
+		// Add all tool responses
+		responseMessages = append(responseMessages, toolResponses...)
+
+		// Make another call to get the AI's final response after tools
+		finalMessages, err := callOpenAIFinalResponse(model, apiKey, append(messages, responseMessages...), out)
+		if err != nil {
+			return nil, err
+		}
+
+		return append(responseMessages, finalMessages...), nil
 	}
 
 	// Add the assistant message if we didn't execute any tools
@@ -575,8 +767,9 @@ func callOpenAIWithTools(model, apiKey string, messages []map[string]interface{}
 	return responseMessages, nil
 }
 
-// callOpenAIFinalResponse calls OpenAI to get a response after tools have been executed
+// callOpenAIFinalResponse calls OpenAI to get final response after tool execution.
 func callOpenAIFinalResponse(model, apiKey string, messages []map[string]interface{}, out io.Writer) ([]map[string]interface{}, error) {
+	// Prepare request
 	requestData := map[string]interface{}{
 		"model":    model,
 		"messages": messages,
@@ -585,12 +778,12 @@ func callOpenAIFinalResponse(model, apiKey string, messages []map[string]interfa
 
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %v", err)
+		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(requestBody)))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -599,7 +792,7 @@ func callOpenAIFinalResponse(model, apiKey string, messages []map[string]interfa
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -644,7 +837,7 @@ func callOpenAIFinalResponse(model, apiKey string, messages []map[string]interfa
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
 	if fullContent.Len() > 0 {
@@ -659,10 +852,16 @@ func callOpenAIFinalResponse(model, apiKey string, messages []map[string]interfa
 	return nil, nil
 }
 
-// callAnthropicWithTools calls Anthropic API with tools support
+// callAnthropicWithMultipleTools calls Anthropic API with tools from multiple servers.
+func callAnthropicWithMultipleTools(model, apiKey string, messages []map[string]interface{}, tools []Tool, clients []*client.Client, out io.Writer) ([]map[string]interface{}, error) {
+	// For brevity, we'll reuse the existing Anthropic implementation but add a warning
+	serverColor.Fprintf(color.Output, "Note: Multi-server support is limited for Anthropic. Only using tools from server 1.\n")
+	return callAnthropicWithTools(model, apiKey, messages, tools, clients[0], out)
+}
+
+// callAnthropicWithTools calls Anthropic API with tools support.
 func callAnthropicWithTools(model, apiKey string, messages []map[string]interface{}, tools []Tool, mcpClient *client.Client, out io.Writer) ([]map[string]interface{}, error) {
 	var responseMessages []map[string]interface{}
-	var fullContent strings.Builder
 
 	// Extract system message
 	systemPrompt := ""
@@ -709,12 +908,12 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %v", err)
+		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", strings.NewReader(string(requestBody)))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -724,7 +923,7 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -734,7 +933,9 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
-	var toolUse map[string]interface{}
+	var toolUses []map[string]interface{}
+	var currentToolUse map[string]interface{}
+	var assistantContent string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -757,7 +958,7 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 					if contentBlock, ok := block.(map[string]interface{}); ok {
 						if text, ok := contentBlock["text"].(string); ok {
 							fmt.Fprint(out, text)
-							fullContent.WriteString(text)
+							assistantContent += text
 						}
 					}
 				}
@@ -767,8 +968,8 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 			if delta, ok := data["delta"].(map[string]interface{}); ok {
 				if usage, ok := delta["tool_use"].(map[string]interface{}); ok {
 					// Initialize tool use if needed
-					if toolUse == nil {
-						toolUse = map[string]interface{}{
+					if currentToolUse == nil {
+						currentToolUse = map[string]interface{}{
 							"id":    usage["id"],
 							"type":  "tool_use",
 							"name":  usage["name"],
@@ -776,87 +977,128 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 						}
 
 						// Print tool name when we first encounter it
-						fmt.Fprintf(out, "[Calling %s", toolUse["name"])
+						fmt.Fprintf(out, "\n[Calling %s", currentToolUse["name"])
 					}
 
 					// Append to input if present
 					if input, ok := usage["input"].(string); ok {
-						current := toolUse["input"].(string)
-						toolUse["input"] = current + input
+						current := currentToolUse["input"].(string)
+						currentToolUse["input"] = current + input
+					}
+
+					// Check if this tool is complete
+					if id, ok := usage["id"].(string); ok && id != "" {
+						if _, exists := findToolUseById(toolUses, id); !exists {
+							// New completed tool, add to our list
+							if name, ok := usage["name"].(string); ok && name != "" {
+								toolUse := map[string]interface{}{
+									"id":    id,
+									"name":  name,
+									"input": currentToolUse["input"].(string),
+								}
+								toolUses = append(toolUses, toolUse)
+
+								// Reset current tool use for the next one
+								currentToolUse = nil
+							}
+						}
 					}
 				}
 			}
 
 			// Handle message stop
 			if typ, ok := data["type"].(string); ok && typ == "message_stop" {
-				if toolUse != nil {
-					// We have a tool to execute
-					fmt.Fprint(out, "]")
-
-					toolName := toolUse["name"].(string)
-					toolInputStr := toolUse["input"].(string)
-
-					var toolArgs map[string]interface{}
-					if err := json.Unmarshal([]byte(toolInputStr), &toolArgs); err != nil {
-						fmt.Fprintf(out, "\nmcp > Error parsing tool arguments: %v\n", err)
-					} else {
-						// Execute tool
-						fmt.Fprintf(out, "\nmcp > [running %s with params %s]\n", toolName, toolInputStr)
-
-						result, err := mcpClient.CallTool(toolName, toolArgs)
-						if err != nil {
-							fmt.Fprintf(out, "mcp > Error executing tool: %v\n", err)
-						} else {
-							// Format result as JSON
-							resultBytes, _ := json.MarshalIndent(result, "", "  ")
-							resultStr := string(resultBytes)
-
-							fmt.Fprint(out, resultStr+"\n")
-
-							// Add assistant message
-							responseMessages = append(responseMessages, map[string]interface{}{
-								"role":    "assistant",
-								"content": fullContent.String(),
-							})
-
-							// Add tool result as a message
-							responseMessages = append(responseMessages, map[string]interface{}{
-								"role":    "user",
-								"content": fmt.Sprintf("Tool result from %s: %s", toolName, resultStr),
-							})
-
-							// Get the final response after tool execution
-							finalMessages, err := callAnthropicFinalResponse(model, apiKey, append(messages, responseMessages...), out)
-							if err != nil {
-								return nil, err
-							}
-
-							return append(responseMessages, finalMessages...), nil
-						}
-					}
-				}
-
+				// We're done parsing the message
 				break
 			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
+	}
+
+	// Add assistant message with content
+	if assistantContent != "" {
+		responseMessages = append(responseMessages, map[string]interface{}{
+			"role":    "assistant",
+			"content": assistantContent,
+		})
+	}
+
+	// Process all tool uses if we have any
+	if len(toolUses) > 0 {
+		// Close the tool call display
+		fmt.Fprint(out, "]")
+
+		// Process and execute each tool
+		var toolResponses []map[string]interface{}
+
+		for _, toolUse := range toolUses {
+			toolName := toolUse["name"].(string)
+			toolInputStr := toolUse["input"].(string)
+
+			var toolArgs map[string]interface{}
+			if err := json.Unmarshal([]byte(toolInputStr), &toolArgs); err != nil {
+				fmt.Fprintf(out, "\nmcp > Error parsing tool arguments: %v\n", err)
+				continue
+			}
+
+			// Execute tool
+			fmt.Fprintf(out, "\nmcp > [running %s with params %s]\n", toolName, toolInputStr)
+
+			result, err := mcpClient.CallTool(toolName, toolArgs)
+			if err != nil {
+				fmt.Fprintf(out, "mcp > Error executing tool: %v\n", err)
+			} else {
+				// Format result as JSON
+				resultBytes, _ := json.MarshalIndent(result, "", "  ")
+				resultStr := string(resultBytes)
+
+				fmt.Fprint(out, resultStr+"\n")
+
+				// Add tool result as a message
+				toolResponses = append(toolResponses, map[string]interface{}{
+					"role":    "user",
+					"content": fmt.Sprintf("Tool result from %s: %s", toolName, resultStr),
+				})
+			}
+		}
+
+		// Add all tool responses
+		responseMessages = append(responseMessages, toolResponses...)
+
+		// Get the final response after tool execution
+		finalMessages, err := callAnthropicFinalResponse(model, apiKey, append(messages, responseMessages...), out)
+		if err != nil {
+			return nil, err
+		}
+
+		return append(responseMessages, finalMessages...), nil
 	}
 
 	// If we got here without executing tools, return the full content
-	if fullContent.Len() > 0 {
+	if len(responseMessages) == 0 && assistantContent != "" {
 		responseMessages = append(responseMessages, map[string]interface{}{
 			"role":    "assistant",
-			"content": fullContent.String(),
+			"content": assistantContent,
 		})
 	}
 
 	return responseMessages, nil
 }
 
-// callAnthropicFinalResponse calls Anthropic to get final response after tool execution
+// findToolUseById finds a tool use by its ID.
+func findToolUseById(toolUses []map[string]interface{}, id string) (map[string]interface{}, bool) {
+	for _, toolUse := range toolUses {
+		if toolId, ok := toolUse["id"].(string); ok && toolId == id {
+			return toolUse, true
+		}
+	}
+	return nil, false
+}
+
+// callAnthropicFinalResponse calls Anthropic to get final response after tool execution.
 func callAnthropicFinalResponse(model, apiKey string, messages []map[string]interface{}, out io.Writer) ([]map[string]interface{}, error) {
 	// Extract system message and format messages
 	systemPrompt := ""
@@ -882,12 +1124,12 @@ func callAnthropicFinalResponse(model, apiKey string, messages []map[string]inte
 
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %v", err)
+		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", strings.NewReader(string(requestBody)))
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -897,7 +1139,7 @@ func callAnthropicFinalResponse(model, apiKey string, messages []map[string]inte
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -944,7 +1186,7 @@ func callAnthropicFinalResponse(model, apiKey string, messages []map[string]inte
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
 	if fullContent.Len() > 0 {
@@ -959,327 +1201,15 @@ func callAnthropicFinalResponse(model, apiKey string, messages []map[string]inte
 	return nil, nil
 }
 
-// callMistralWithTools calls Mistral API with tools support
-func callMistralWithTools(model, apiKey string, messages []map[string]interface{}, tools []Tool, mcpClient *client.Client, out io.Writer) ([]map[string]interface{}, error) {
-	var responseMessages []map[string]interface{}
-	var fullContent strings.Builder
-
-	// Format tools for Mistral
-	mistralTools := []map[string]interface{}{}
-	for _, tool := range tools {
-		mistralTools = append(mistralTools, map[string]interface{}{
-			"type": "function",
-			"function": map[string]interface{}{
-				"name":        tool.Name,
-				"description": tool.Description,
-				"parameters":  tool.Parameters,
-			},
-		})
-	}
-
-	// Prepare request
-	requestData := map[string]interface{}{
-		"model":       model,
-		"messages":    messages,
-		"tools":       mistralTools,
-		"tool_choice": "auto",
-		"stream":      true,
-	}
-
-	requestBody, err := json.Marshal(requestData)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %v", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.mistral.ai/v1/chat/completions", strings.NewReader(string(requestBody)))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	scanner := bufio.NewScanner(resp.Body)
-
-	var toolCalls []map[string]interface{}
-	var assistantMessage map[string]interface{}
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if line == "" {
-			continue
+// convertMessages converts between different message formats if needed.
+func convertMessages(messages []map[string]interface{}) []map[string]interface{} {
+	convertedMessages := make([]map[string]interface{}, 0, len(messages))
+	for _, msg := range messages {
+		convertedMsg := make(map[string]interface{})
+		for k, v := range msg {
+			convertedMsg[k] = v
 		}
-
-		if strings.HasPrefix(line, "data: ") {
-			line = strings.TrimPrefix(line, "data: ")
-
-			if line == "[DONE]" {
-				break
-			}
-
-			var data map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &data); err != nil {
-				continue
-			}
-
-			if choices, ok := data["choices"].([]interface{}); ok && len(choices) > 0 {
-				if choice, ok := choices[0].(map[string]interface{}); ok {
-					if delta, ok := choice["delta"].(map[string]interface{}); ok {
-						// Initialize assistant message if needed
-						if assistantMessage == nil {
-							assistantMessage = map[string]interface{}{
-								"role":       "assistant",
-								"content":    "",
-								"tool_calls": []map[string]interface{}{},
-							}
-						}
-
-						// Handle content
-						if content, ok := delta["content"].(string); ok && content != "" {
-							fmt.Fprint(out, content)
-							fullContent.WriteString(content)
-							currentContent, _ := assistantMessage["content"].(string)
-							assistantMessage["content"] = currentContent + content
-						}
-
-						// Handle tool calls
-						if toolCallDelta, ok := delta["tool_calls"].([]interface{}); ok && len(toolCallDelta) > 0 {
-							for _, tc := range toolCallDelta {
-								if tcDelta, ok := tc.(map[string]interface{}); ok {
-									// Get the index for this tool call
-									index, _ := tcDelta["index"].(float64)
-									indexInt := int(index)
-
-									// Ensure we have enough elements in toolCalls
-									for len(toolCalls) <= indexInt {
-										toolCalls = append(toolCalls, map[string]interface{}{
-											"id":   "",
-											"type": "function",
-											"function": map[string]interface{}{
-												"name":      "",
-												"arguments": "",
-											},
-										})
-									}
-
-									// Ensure we have enough elements in the assistant message tool_calls
-									toolCallsArr, _ := assistantMessage["tool_calls"].([]map[string]interface{})
-									for len(toolCallsArr) <= indexInt {
-										toolCallsArr = append(toolCallsArr, map[string]interface{}{
-											"id":   "",
-											"type": "function",
-											"function": map[string]interface{}{
-												"name":      "",
-												"arguments": "",
-											},
-										})
-									}
-									assistantMessage["tool_calls"] = toolCallsArr
-
-									// Update the tool call with this delta
-									if id, ok := tcDelta["id"].(string); ok && id != "" {
-										toolCalls[indexInt]["id"] = id
-										toolCallsArr[indexInt]["id"] = id
-									}
-
-									if function, ok := tcDelta["function"].(map[string]interface{}); ok {
-										toolCall := toolCalls[indexInt]["function"].(map[string]interface{})
-										toolCallInAssistant := toolCallsArr[indexInt]["function"].(map[string]interface{})
-
-										if name, ok := function["name"].(string); ok && name != "" {
-											toolCall["name"] = name
-											toolCallInAssistant["name"] = name
-
-											// Print tool name when first encountered
-											currentName, _ := toolCall["name"].(string)
-											if currentName == name {
-												fmt.Fprintf(out, "[Calling %s", name)
-											}
-										}
-
-										if arguments, ok := function["arguments"].(string); ok && arguments != "" {
-											current, _ := toolCall["arguments"].(string)
-											toolCall["arguments"] = current + arguments
-
-											currentInAssistant, _ := toolCallInAssistant["arguments"].(string)
-											toolCallInAssistant["arguments"] = currentInAssistant + arguments
-										}
-									}
-								}
-							}
-						}
-
-						// Process tool calls when done
-						if finish, ok := choice["finish_reason"].(string); ok && finish == "tool_calls" {
-							// We have tool calls to execute
-							fmt.Fprint(out, "]")
-
-							// First add the assistant message to the conversation
-							responseMessages = append(responseMessages, assistantMessage)
-
-							var toolResponses []map[string]interface{}
-							for _, toolCall := range toolCalls {
-								functionData := toolCall["function"].(map[string]interface{})
-								toolName := functionData["name"].(string)
-								toolArgsStr := functionData["arguments"].(string)
-
-								var toolArgs map[string]interface{}
-								if err := json.Unmarshal([]byte(toolArgsStr), &toolArgs); err != nil {
-									fmt.Fprintf(out, "\nmcp > Error parsing tool arguments: %v\n", err)
-									continue
-								}
-
-								// Execute tool
-								fmt.Fprintf(out, "\nmcp > [running %s with params %s]\n", toolName, toolArgsStr)
-
-								result, err := mcpClient.CallTool(toolName, toolArgs)
-								if err != nil {
-									fmt.Fprintf(out, "mcp > Error executing tool: %v\n", err)
-									toolResponses = append(toolResponses, map[string]interface{}{
-										"role":         "tool",
-										"tool_call_id": toolCall["id"].(string),
-										"content":      fmt.Sprintf("Error: %v", err),
-									})
-								} else {
-									// Format result as JSON
-									resultBytes, _ := json.MarshalIndent(result, "", "  ")
-									resultStr := string(resultBytes)
-
-									fmt.Fprint(out, resultStr+"\n")
-
-									toolResponses = append(toolResponses, map[string]interface{}{
-										"role":         "tool",
-										"tool_call_id": toolCall["id"].(string),
-										"content":      resultStr,
-									})
-								}
-							}
-
-							// Add all tool responses
-							responseMessages = append(responseMessages, toolResponses...)
-
-							// Get final response
-							finalMessages, err := callMistralFinalResponse(model, apiKey, append(messages, responseMessages...), out)
-							if err != nil {
-								return nil, err
-							}
-
-							return append(responseMessages, finalMessages...), nil
-						}
-					}
-				}
-			}
-		}
+		convertedMessages = append(convertedMessages, convertedMsg)
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
-	}
-
-	// If we got here without executing tools, return the full content
-	if fullContent.Len() > 0 {
-		responseMessages = append(responseMessages, map[string]interface{}{
-			"role":    "assistant",
-			"content": fullContent.String(),
-		})
-	}
-
-	return responseMessages, nil
-}
-
-// callMistralFinalResponse calls Mistral to get a final response after tools have been executed
-func callMistralFinalResponse(model, apiKey string, messages []map[string]interface{}, out io.Writer) ([]map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"model":    model,
-		"messages": messages,
-		"stream":   true,
-	}
-
-	requestBody, err := json.Marshal(requestData)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %v", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.mistral.ai/v1/chat/completions", strings.NewReader(string(requestBody)))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var fullContent strings.Builder
-	scanner := bufio.NewScanner(resp.Body)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if line == "" {
-			continue
-		}
-
-		if strings.HasPrefix(line, "data: ") {
-			line = strings.TrimPrefix(line, "data: ")
-
-			if line == "[DONE]" {
-				break
-			}
-
-			var data map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &data); err != nil {
-				continue
-			}
-
-			if choices, ok := data["choices"].([]interface{}); ok && len(choices) > 0 {
-				if choice, ok := choices[0].(map[string]interface{}); ok {
-					if delta, ok := choice["delta"].(map[string]interface{}); ok {
-						if content, ok := delta["content"].(string); ok {
-							fmt.Fprint(out, content)
-							fullContent.WriteString(content)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
-	}
-
-	if fullContent.Len() > 0 {
-		return []map[string]interface{}{
-			{
-				"role":    "assistant",
-				"content": fullContent.String(),
-			},
-		}, nil
-	}
-
-	return nil, nil
+	return convertedMessages
 }
