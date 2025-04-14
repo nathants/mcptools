@@ -80,6 +80,7 @@ func WebCmd() *cobra.Command {
 			mux.HandleFunc("/api/call", handleCall(clientCache))
 
 			// Start the server
+			//nolint:gosec // Timeouts not implemented for this development/internal tool
 			err := http.ListenAndServe(":"+port, mux)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error starting web server: %v\n", err)
@@ -89,14 +90,15 @@ func WebCmd() *cobra.Command {
 	}
 }
 
-// MCPClientCache provides thread-safe access to the MCP client
+// MCPClientCache provides thread-safe access to the MCP client.
 type MCPClientCache struct {
 	client *client.Client
 	mutex  *sync.Mutex
 }
 
-// handleIndex serves the main web interface
+// handleIndex serves the main web interface.
 func handleIndex() http.HandlerFunc {
+	//nolint:revive // Parameter r is required by http.HandlerFunc signature
 	return func(w http.ResponseWriter, r *http.Request) {
 		// For simplicity, we'll embed a basic HTML page directly
 		// In a production app, we'd use proper templates and static files
@@ -1160,12 +1162,14 @@ func handleIndex() http.HandlerFunc {
 </html>
 `
 		w.Header().Set("Content-Type", "text/html")
+		//nolint:errcheck,gosec // No need to handle error from Write in this context
 		w.Write([]byte(html))
 	}
 }
 
-// handleTools handles API requests for listing tools
+// handleTools handles API requests for listing tools.
 func handleTools(cache *MCPClientCache) http.HandlerFunc {
+	//nolint:revive // Parameter r is required by http.HandlerFunc signature
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache.mutex.Lock()
 		resp, err := cache.client.ListTools()
@@ -1174,20 +1178,23 @@ func handleTools(cache *MCPClientCache) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			//nolint:errcheck,gosec // No need to handle error from Encode in this context
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": err.Error(),
 			})
 			return
 		}
 
+		//nolint:errcheck,gosec // No need to handle error from Encode in this context
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": resp,
 		})
 	}
 }
 
-// handleResources handles API requests for listing resources
+// handleResources handles API requests for listing resources.
 func handleResources(cache *MCPClientCache) http.HandlerFunc {
+	//nolint:revive // Parameter r is required by http.HandlerFunc signature
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache.mutex.Lock()
 		resp, err := cache.client.ListResources()
@@ -1196,20 +1203,23 @@ func handleResources(cache *MCPClientCache) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			//nolint:errcheck,gosec // No need to handle error from Encode in this context
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": err.Error(),
 			})
 			return
 		}
 
+		//nolint:errcheck,gosec // No need to handle error from Encode in this context
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": resp,
 		})
 	}
 }
 
-// handlePrompts handles API requests for listing prompts
+// handlePrompts handles API requests for listing prompts.
 func handlePrompts(cache *MCPClientCache) http.HandlerFunc {
+	//nolint:revive // Parameter r is required by http.HandlerFunc signature
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache.mutex.Lock()
 		resp, err := cache.client.ListPrompts()
@@ -1218,19 +1228,21 @@ func handlePrompts(cache *MCPClientCache) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			//nolint:errcheck,gosec // No need to handle error from Encode in this context
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": err.Error(),
 			})
 			return
 		}
 
+		//nolint:errcheck,gosec // No need to handle error from Encode in this context
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": resp,
 		})
 	}
 }
 
-// handleCall handles API requests for calling tools/resources/prompts
+// handleCall handles API requests for calling tools/resources/prompts.
 func handleCall(cache *MCPClientCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -1239,14 +1251,15 @@ func handleCall(cache *MCPClientCache) http.HandlerFunc {
 		}
 
 		var requestData struct {
+			Params map[string]interface{} `json:"params"`
 			Type   string                 `json:"type"`
 			Name   string                 `json:"name"`
-			Params map[string]interface{} `json:"params"`
 		}
 
 		err := json.NewDecoder(r.Body).Decode(&requestData)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			//nolint:errcheck,gosec // No need to handle error from Encode in this context
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": "Invalid request: " + err.Error(),
 			})
@@ -1268,6 +1281,7 @@ func handleCall(cache *MCPClientCache) http.HandlerFunc {
 			resp, callErr = cache.client.GetPrompt(requestData.Name)
 		default:
 			w.WriteHeader(http.StatusBadRequest)
+			//nolint:errcheck,gosec // No need to handle error from Encode in this context
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": "Invalid entity type: " + requestData.Type,
 			})
@@ -1277,12 +1291,14 @@ func handleCall(cache *MCPClientCache) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		if callErr != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			//nolint:errcheck,gosec // No need to handle error from Encode in this context
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": callErr.Error(),
 			})
 			return
 		}
 
+		//nolint:errcheck,gosec // No need to handle error from Encode in this context
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"result": resp,
 		})
