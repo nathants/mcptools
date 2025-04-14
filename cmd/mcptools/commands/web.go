@@ -107,293 +107,63 @@ func handleIndex() http.HandlerFunc {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MCP Tools</title>
+    <!-- Add Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-            color: #333;
-        }
-        #sidebar {
-            width: 250px;
-            background-color: #f5f5f5;
-            border-right: 1px solid #ddd;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        #main {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        h1 {
-            margin-top: 0;
-            font-size: 1.5rem;
-            color: #333;
-        }
-        h2 {
-            font-size: 1.2rem;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            color: #555;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        li {
-            padding: 8px 0;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-        li:hover {
-            background-color: #f0f0f0;
-        }
-        pre {
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 15px;
-            overflow: auto;
-            font-family: 'Courier New', Courier, monospace;
-        }
-        .tool-item {
-            color: #0366d6;
-        }
-        .resource-item {
-            color: #28a745;
-        }
-        .prompt-item {
-            color: #e36209;
-        }
-        #params-area {
-            width: 100%;
-            min-height: 100px;
-            font-family: monospace;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            padding: 10px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        .form-group .description {
-            font-size: 0.85rem;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-family: inherit;
-        }
-        .form-group textarea {
-            min-height: 80px;
-            font-family: monospace;
-        }
-        button {
-            background-color: #0366d6;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0258c5;
-        }
-        .toggle-json {
-            background-color: #6c757d;
-            margin-left: 10px;
-        }
-        .toggle-json:hover {
-            background-color: #5a6268;
-        }
+        /* Custom styles that aren't easily handled by Tailwind */
         .hidden {
             display: none;
         }
-        #result {
-            margin-top: 20px;
-        }
-        #form-container {
-            margin-top: 15px;
-        }
-        #json-editor-container {
-            margin-top: 15px;
-        }
-        .result-object {
-            border-left: 3px solid #0366d6;
-            padding-left: 10px;
-            margin-bottom: 10px;
-        }
-        .result-object h3 {
-            margin-top: 0;
-            margin-bottom: 5px;
-            color: #0366d6;
-        }
-        .result-property {
-            margin-left: 15px;
-            margin-bottom: 5px;
-        }
-        .property-name {
-            color: #6c757d;
-            margin-right: 5px;
-        }
-        .property-value {
-            font-family: monospace;
-        }
-        .property-value.string {
-            color: #28a745;
-        }
-        .property-value.number {
-            color: #fd7e14;
-        }
-        .property-value.boolean {
-            color: #dc3545;
-        }
-        .property-value.null {
-            color: #6c757d;
-            font-style: italic;
-        }
-        .required {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        .tab-container {
-            display: flex;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #ddd;
-        }
-        .tab {
-            padding: 8px 16px;
-            margin-right: 5px;
-            cursor: pointer;
-            border: 1px solid #ddd;
-            border-bottom: none;
-            border-radius: 4px 4px 0 0;
-            background-color: #f5f5f5;
-        }
-        .tab.active {
-            background-color: white;
-            border-bottom: 1px solid white;
-            margin-bottom: -1px;
-            font-weight: bold;
-        }
-        #raw-output-container,
-        #formatted-output-container {
-            display: none;
-        }
-        .array-item {
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 15px;
-            margin-bottom: 10px;
-            background-color: #f9f9f9;
-            position: relative;
-        }
-        .array-container {
-            margin-bottom: 15px;
-        }
-        .array-actions {
-            margin-top: 10px;
-        }
-        .btn-add {
-            background-color: #28a745;
-        }
-        .btn-add:hover {
-            background-color: #218838;
-        }
-        .btn-remove {
-            background-color: #dc3545;
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            padding: 2px 8px;
-            font-size: 12px;
-        }
-        .btn-remove:hover {
-            background-color: #c82333;
-        }
-        .property-value.json-string {
-            white-space: pre;
-            display: block;
-            background-color: #f8f9fa;
-            border: 1px solid #eaecef;
-            border-radius: 3px;
-            padding: 10px;
-            margin-top: 5px;
-            overflow-x: auto;
-            font-family: 'Courier New', Courier, monospace;
-            color: #333;
-        }
-        #tool-description {
-            font-size: 1rem;
-            color: #666;
-            margin-top: 0;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
         
-        #tool-description.hidden {
-            display: none;
+        /* Only preserve critical styles that can't be easily done with Tailwind */
+        #raw-output-container {
+            white-space: pre;
         }
     </style>
 </head>
-<body>
-    <div id="sidebar">
-        <h1>MCP Tools</h1>
+<body class="h-screen flex bg-gray-50 text-gray-900 antialiased">
+    <div id="sidebar" class="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
+        <h1 class="text-xl font-semibold text-gray-800">MCP Tools</h1>
         
-        <h2>Tools</h2>
-        <ul id="tools-list"></ul>
+        <h2 class="mt-6 mb-2 text-sm font-medium text-gray-600 uppercase tracking-wider">Tools</h2>
+        <ul id="tools-list" class="space-y-1"></ul>
         
-        <h2>Resources</h2>
-        <ul id="resources-list"></ul>
+        <h2 class="mt-6 mb-2 text-sm font-medium text-gray-600 uppercase tracking-wider">Resources</h2>
+        <ul id="resources-list" class="space-y-1"></ul>
         
-        <h2>Prompts</h2>
-        <ul id="prompts-list"></ul>
+        <h2 class="mt-6 mb-2 text-sm font-medium text-gray-600 uppercase tracking-wider">Prompts</h2>
+        <ul id="prompts-list" class="space-y-1"></ul>
     </div>
     
-    <div id="main">
-        <h1 id="main-title">Select an item from the sidebar</h1>
-        <p id="tool-description" class="hidden"></p>
+    <div id="main" class="flex-1 p-6 overflow-y-auto">
+        <h1 id="main-title" class="text-2xl font-bold text-gray-800 mb-4">Select an item from the sidebar</h1>
+        <p id="tool-description" class="hidden text-gray-600 mb-6"></p>
         
-        <div id="tool-panel" class="hidden">
-            <h2>Parameters:</h2>
+        <div id="tool-panel" class="hidden bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-medium text-gray-700 mb-4">Parameters:</h2>
             
-            <div class="tab-container">
-                <div class="tab active" id="form-tab">Form</div>
-                <div class="tab" id="json-tab">JSON</div>
+            <div class="tab-container flex border-b border-gray-200 mb-4">
+                <div class="tab active px-4 py-2 border-t border-l border-r border-gray-200 rounded-t-md bg-white text-blue-600 font-medium" id="form-tab">Form</div>
+                <div class="tab px-4 py-2 border-t border-l border-r border-gray-200 rounded-t-md bg-gray-50 text-gray-500" id="json-tab">JSON</div>
             </div>
             
-            <div id="form-container"></div>
+            <div id="form-container" class="mb-4"></div>
             
-            <div id="json-editor-container" class="hidden">
-                <textarea id="params-area">{}</textarea>
+            <div id="json-editor-container" class="hidden mb-4">
+                <textarea id="params-area" class="w-full min-h-[100px] p-3 border border-gray-300 rounded-md font-mono">{}</textarea>
             </div>
             
-            <button id="execute-btn">Execute</button>
+            <button id="execute-btn" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">Execute</button>
         </div>
         
-        <div id="result">
-            <div class="tab-container">
-                <div class="tab active" id="formatted-tab">Formatted</div>
-                <div class="tab" id="raw-tab">Raw JSON</div>
+        <div id="result" class="mt-6">
+            <div class="tab-container flex border-b border-gray-200 mb-4">
+                <div class="tab active px-4 py-2 border-t border-l border-r border-gray-200 rounded-t-md bg-white text-blue-600 font-medium" id="formatted-tab">Formatted</div>
+                <div class="tab px-4 py-2 border-t border-l border-r border-gray-200 rounded-t-md bg-gray-50 text-gray-500" id="raw-tab">Raw JSON</div>
             </div>
             
-            <div id="formatted-output-container"></div>
-            <pre id="raw-output-container"></pre>
+            <div id="formatted-output-container" class="bg-white border border-gray-200 rounded-lg p-4"></div>
+            <pre id="raw-output-container" class="hidden bg-gray-800 text-gray-100 p-4 rounded-lg overflow-x-auto font-mono text-sm"></pre>
         </div>
     </div>
 
@@ -406,7 +176,7 @@ func handleIndex() http.HandlerFunc {
                 if (data.result && data.result.tools) {
                     data.result.tools.forEach(tool => {
                         const li = document.createElement('li');
-                        li.className = 'tool-item';
+                        li.className = 'py-2 px-3 cursor-pointer text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-150';
                         li.textContent = tool.name;
                         li.onclick = () => showTool(tool);
                         toolsList.appendChild(li);
@@ -414,7 +184,8 @@ func handleIndex() http.HandlerFunc {
                 }
                 
                 // Ensure formatted tab is visible by default
-                document.getElementById('formatted-output-container').style.display = 'block';
+                document.getElementById('formatted-output-container').classList.remove('hidden');
+                document.getElementById('raw-output-container').classList.add('hidden');
             })
             .catch(err => console.error('Error fetching tools:', err));
             
@@ -426,7 +197,7 @@ func handleIndex() http.HandlerFunc {
                 if (data.result && data.result.resources) {
                     data.result.resources.forEach(resource => {
                         const li = document.createElement('li');
-                        li.className = 'resource-item';
+                        li.className = 'py-2 px-3 cursor-pointer text-green-600 hover:bg-green-50 rounded-md transition-colors duration-150';
                         li.textContent = resource.uri;
                         li.onclick = () => callResource(resource.uri);
                         resourcesList.appendChild(li);
@@ -443,7 +214,7 @@ func handleIndex() http.HandlerFunc {
                 if (data.result && data.result.prompts) {
                     data.result.prompts.forEach(prompt => {
                         const li = document.createElement('li');
-                        li.className = 'prompt-item';
+                        li.className = 'py-2 px-3 cursor-pointer text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-150';
                         li.textContent = prompt.name;
                         li.onclick = () => callPrompt(prompt.name);
                         promptsList.appendChild(li);
@@ -459,7 +230,13 @@ func handleIndex() http.HandlerFunc {
             
             // Then switch to form view
             document.getElementById('form-tab').classList.add('active');
+            document.getElementById('form-tab').classList.remove('bg-gray-50');
+            document.getElementById('form-tab').classList.add('bg-white', 'text-blue-600');
+            
             document.getElementById('json-tab').classList.remove('active');
+            document.getElementById('json-tab').classList.remove('bg-white', 'text-blue-600');
+            document.getElementById('json-tab').classList.add('bg-gray-50', 'text-gray-500');
+            
             document.getElementById('form-container').classList.remove('hidden');
             document.getElementById('json-editor-container').classList.add('hidden');
         });
@@ -470,23 +247,41 @@ func handleIndex() http.HandlerFunc {
             
             // Then switch to JSON view
             document.getElementById('json-tab').classList.add('active');
+            document.getElementById('json-tab').classList.remove('bg-gray-50');
+            document.getElementById('json-tab').classList.add('bg-white', 'text-blue-600');
+            
             document.getElementById('form-tab').classList.remove('active');
+            document.getElementById('form-tab').classList.remove('bg-white', 'text-blue-600');
+            document.getElementById('form-tab').classList.add('bg-gray-50', 'text-gray-500');
+            
             document.getElementById('json-editor-container').classList.remove('hidden');
             document.getElementById('form-container').classList.add('hidden');
         });
         
         document.getElementById('formatted-tab').addEventListener('click', () => {
             document.getElementById('formatted-tab').classList.add('active');
+            document.getElementById('formatted-tab').classList.remove('bg-gray-50');
+            document.getElementById('formatted-tab').classList.add('bg-white', 'text-blue-600');
+            
             document.getElementById('raw-tab').classList.remove('active');
-            document.getElementById('formatted-output-container').style.display = 'block';
-            document.getElementById('raw-output-container').style.display = 'none';
+            document.getElementById('raw-tab').classList.remove('bg-white', 'text-blue-600');
+            document.getElementById('raw-tab').classList.add('bg-gray-50', 'text-gray-500');
+            
+            document.getElementById('formatted-output-container').classList.remove('hidden');
+            document.getElementById('raw-output-container').classList.add('hidden');
         });
         
         document.getElementById('raw-tab').addEventListener('click', () => {
             document.getElementById('raw-tab').classList.add('active');
+            document.getElementById('raw-tab').classList.remove('bg-gray-50');
+            document.getElementById('raw-tab').classList.add('bg-white', 'text-blue-600');
+            
             document.getElementById('formatted-tab').classList.remove('active');
-            document.getElementById('raw-output-container').style.display = 'block';
-            document.getElementById('formatted-output-container').style.display = 'none';
+            document.getElementById('formatted-tab').classList.remove('bg-white', 'text-blue-600');
+            document.getElementById('formatted-tab').classList.add('bg-gray-50', 'text-gray-500');
+            
+            document.getElementById('raw-output-container').classList.remove('hidden');
+            document.getElementById('formatted-output-container').classList.add('hidden');
         });
         
         // Add live update to JSON editor with debounce
@@ -677,7 +472,7 @@ func handleIndex() http.HandlerFunc {
             }
             
             if (!schema) {
-                formContainer.innerHTML = '<p>No parameters required for this tool.</p>';
+                formContainer.innerHTML = '<p class="text-gray-500 italic">No parameters required for this tool.</p>';
                 return;
             }
             
@@ -687,16 +482,18 @@ func handleIndex() http.HandlerFunc {
             for (const propName in properties) {
                 const prop = properties[propName];
                 const formGroup = document.createElement('div');
-                formGroup.className = 'form-group';
+                formGroup.className = 'mb-6';
                 formGroup.dataset.propName = propName;
                 
                 // Create label
                 const label = document.createElement('label');
                 label.htmlFor = 'param-' + propName;
                 label.textContent = propName;
+                label.className = 'block text-sm font-medium text-gray-700 mb-1';
+                
                 if (required.includes(propName)) {
                     const requiredSpan = document.createElement('span');
-                    requiredSpan.className = 'required';
+                    requiredSpan.className = 'text-red-600 font-bold';
                     requiredSpan.textContent = ' *';
                     label.appendChild(requiredSpan);
                 }
@@ -705,7 +502,7 @@ func handleIndex() http.HandlerFunc {
                 // Add description if available
                 if (prop.description) {
                     const description = document.createElement('div');
-                    description.className = 'description';
+                    description.className = 'text-xs text-gray-500 mb-2';
                     description.textContent = prop.description;
                     formGroup.appendChild(description);
                 }
@@ -714,7 +511,7 @@ func handleIndex() http.HandlerFunc {
                 if (prop.type === 'array') {
                     // Create array container
                     const arrayContainer = document.createElement('div');
-                    arrayContainer.className = 'array-container';
+                    arrayContainer.className = 'mb-4';
                     arrayContainer.id = 'array-container-' + propName;
                     formGroup.appendChild(arrayContainer);
                     
@@ -728,15 +525,15 @@ func handleIndex() http.HandlerFunc {
                         // Add button for adding new items
                         const addButton = document.createElement('button');
                         addButton.type = 'button';
-                        addButton.className = 'btn-add';
-                        addButton.textContent = '+ Add Item';
+                        addButton.className = 'flex items-center px-3 py-2 mt-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500';
+                        addButton.innerHTML = '<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Add Item';
                         addButton.onclick = () => {
                             addArrayItem(propName, prop.items);
                             updateJSONFromForm(); // Update JSON when adding items
                         };
                         
                         const arrayActions = document.createElement('div');
-                        arrayActions.className = 'array-actions';
+                        arrayActions.className = 'mt-2';
                         arrayActions.appendChild(addButton);
                         formGroup.appendChild(arrayActions);
                         
@@ -750,8 +547,9 @@ func handleIndex() http.HandlerFunc {
                         const textarea = document.createElement('textarea');
                         textarea.id = 'param-' + propName;
                         textarea.name = propName;
-                        textarea.className = 'form-control';
+                        textarea.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono';
                         textarea.placeholder = 'Enter one item per line';
+                        textarea.rows = 4;
                         
                         // Add event listener to update JSON when textarea changes
                         textarea.addEventListener('input', () => updateJSONFromForm());
@@ -766,6 +564,8 @@ func handleIndex() http.HandlerFunc {
                     switch (prop.type) {
                         case 'boolean':
                             input = document.createElement('select');
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                            
                             const trueOption = document.createElement('option');
                             trueOption.value = 'true';
                             trueOption.textContent = 'true';
@@ -782,6 +582,7 @@ func handleIndex() http.HandlerFunc {
                         case 'integer':
                             input = document.createElement('input');
                             input.type = 'number';
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
                             if (prop.minimum !== undefined) input.min = prop.minimum;
                             if (prop.maximum !== undefined) input.max = prop.maximum;
                             break;
@@ -789,11 +590,15 @@ func handleIndex() http.HandlerFunc {
                         case 'object':
                             input = document.createElement('textarea');
                             input.placeholder = 'Enter JSON object';
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono';
+                            input.rows = 4;
                             break;
                             
                         default: // string or any other type
                             if (prop.enum) {
                                 input = document.createElement('select');
+                                input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                                
                                 prop.enum.forEach(option => {
                                     const optionEl = document.createElement('option');
                                     optionEl.value = option;
@@ -803,13 +608,13 @@ func handleIndex() http.HandlerFunc {
                             } else {
                                 input = document.createElement('input');
                                 input.type = 'text';
+                                input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
                                 if (prop.format === 'password') input.type = 'password';
                             }
                     }
                     
                     input.id = 'param-' + propName;
                     input.name = propName;
-                    input.className = 'form-control';
                     
                     // Add event listener to update JSON when input changes
                     input.addEventListener('input', () => updateJSONFromForm());
@@ -830,13 +635,13 @@ func handleIndex() http.HandlerFunc {
             
             // Create item container
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'array-item';
+            itemDiv.className = 'relative p-4 mb-4 bg-gray-50 border border-gray-200 rounded-lg';
             itemDiv.dataset.index = itemIndex;
             
             // Add remove button
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
-            removeButton.className = 'btn-remove';
+            removeButton.className = 'absolute top-2 right-2 p-1 w-6 h-6 flex items-center justify-center text-white bg-red-500 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400';
             removeButton.textContent = '×';
             removeButton.onclick = () => {
                 itemDiv.remove();
@@ -852,15 +657,17 @@ func handleIndex() http.HandlerFunc {
                 for (const fieldName in itemSchema.properties) {
                     const fieldProp = itemSchema.properties[fieldName];
                     const fieldGroup = document.createElement('div');
-                    fieldGroup.className = 'form-group';
+                    fieldGroup.className = 'mb-4';
                     
                     // Label
                     const label = document.createElement('label');
                     label.htmlFor = 'param-' + propName + '-' + itemIndex + '-' + fieldName;
                     label.textContent = fieldName;
+                    label.className = 'block text-sm font-medium text-gray-700 mb-1';
+                    
                     if (itemSchema.required && itemSchema.required.includes(fieldName)) {
                         const requiredSpan = document.createElement('span');
-                        requiredSpan.className = 'required';
+                        requiredSpan.className = 'text-red-600 font-bold';
                         requiredSpan.textContent = ' *';
                         label.appendChild(requiredSpan);
                     }
@@ -869,7 +676,7 @@ func handleIndex() http.HandlerFunc {
                     // Description
                     if (fieldProp.description) {
                         const description = document.createElement('div');
-                        description.className = 'description';
+                        description.className = 'text-xs text-gray-500 mb-1';
                         description.textContent = fieldProp.description;
                         fieldGroup.appendChild(description);
                     }
@@ -879,6 +686,8 @@ func handleIndex() http.HandlerFunc {
                     switch (fieldProp.type) {
                         case 'boolean':
                             input = document.createElement('select');
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                            
                             const trueOption = document.createElement('option');
                             trueOption.value = 'true';
                             trueOption.textContent = 'true';
@@ -895,6 +704,7 @@ func handleIndex() http.HandlerFunc {
                         case 'integer':
                             input = document.createElement('input');
                             input.type = 'number';
+                            input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
                             if (fieldProp.minimum !== undefined) input.min = fieldProp.minimum;
                             if (fieldProp.maximum !== undefined) input.max = fieldProp.maximum;
                             break;
@@ -902,6 +712,8 @@ func handleIndex() http.HandlerFunc {
                         default: // string, object, or any other type
                             if (fieldProp.enum) {
                                 input = document.createElement('select');
+                                input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+                                
                                 fieldProp.enum.forEach(option => {
                                     const optionEl = document.createElement('option');
                                     optionEl.value = option;
@@ -911,13 +723,13 @@ func handleIndex() http.HandlerFunc {
                             } else {
                                 input = document.createElement('input');
                                 input.type = 'text';
+                                input.className = 'w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
                                 if (fieldProp.format === 'password') input.type = 'password';
                             }
                     }
                     
                     input.id = 'param-' + propName + '-' + itemIndex + '-' + fieldName;
                     input.name = propName + '-' + itemIndex + '-' + fieldName;
-                    input.className = 'form-control';
                     input.dataset.field = fieldName;
                     
                     // Add event listener to update JSON when item field changes
@@ -1215,10 +1027,11 @@ func handleIndex() http.HandlerFunc {
                 if (value && typeof value === 'object' && !Array.isArray(value)) {
                     // This is an object
                     const objectDiv = document.createElement('div');
-                    objectDiv.className = 'result-object';
-                    objectDiv.style.marginLeft = (level * 15) + 'px';
+                    objectDiv.className = 'pl-4 border-l-2 border-blue-400 mb-4';
+                    objectDiv.style.marginLeft = (level * 16) + 'px';
                     
                     const objectTitle = document.createElement('h3');
+                    objectTitle.className = 'text-lg font-semibold text-blue-600 mb-2';
                     objectTitle.textContent = key;
                     objectDiv.appendChild(objectTitle);
                     
@@ -1229,10 +1042,11 @@ func handleIndex() http.HandlerFunc {
                 } else if (key === "content" && Array.isArray(value)) {
                     // Special handling for content arrays that might contain parseable JSON
                     const contentDiv = document.createElement('div');
-                    contentDiv.className = 'result-object';
-                    contentDiv.style.marginLeft = (level * 15) + 'px';
+                    contentDiv.className = 'pl-4 border-l-2 border-blue-400 mb-4';
+                    contentDiv.style.marginLeft = (level * 16) + 'px';
                     
                     const contentTitle = document.createElement('h3');
+                    contentTitle.className = 'text-lg font-semibold text-blue-600 mb-2';
                     contentTitle.textContent = key;
                     contentDiv.appendChild(contentTitle);
                     
@@ -1243,10 +1057,11 @@ func handleIndex() http.HandlerFunc {
                         if (typeof item === 'object') {
                             // If it's already an object, render it directly
                             const itemDiv = document.createElement('div');
-                            itemDiv.className = 'result-object';
-                            itemDiv.style.marginLeft = '15px';
+                            itemDiv.className = 'pl-4 border-l-2 border-gray-300 mb-2 pb-2';
+                            itemDiv.style.marginLeft = '16px';
                             
                             const itemTitle = document.createElement('h3');
+                            itemTitle.className = 'text-md font-semibold text-gray-700 mb-1';
                             itemTitle.textContent = 'Item ' + (index + 1);
                             itemDiv.appendChild(itemTitle);
                             
@@ -1258,10 +1073,11 @@ func handleIndex() http.HandlerFunc {
                                 const parsedItem = JSON.parse(item);
                                 if (typeof parsedItem === 'object' && parsedItem !== null) {
                                     const itemDiv = document.createElement('div');
-                                    itemDiv.className = 'result-object';
-                                    itemDiv.style.marginLeft = '15px';
+                                    itemDiv.className = 'pl-4 border-l-2 border-gray-300 mb-2 pb-2';
+                                    itemDiv.style.marginLeft = '16px';
                                     
                                     const itemTitle = document.createElement('h3');
+                                    itemTitle.className = 'text-md font-semibold text-gray-700 mb-1';
                                     itemTitle.textContent = 'Item ' + (index + 1);
                                     itemDiv.appendChild(itemTitle);
                                     
@@ -1290,25 +1106,33 @@ func handleIndex() http.HandlerFunc {
         // Helper function to render primitive values
         function renderPrimitiveValue(container, key, value, level) {
             const propertyDiv = document.createElement('div');
-            propertyDiv.className = 'result-property';
-            propertyDiv.style.marginLeft = (level * 15) + 'px';
+            propertyDiv.className = 'py-1 flex flex-wrap';
+            propertyDiv.style.marginLeft = (level * 16) + 'px';
             
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'property-name';
+            nameSpan.className = 'text-gray-600 mr-2 font-medium';
             nameSpan.textContent = key + ': ';
             propertyDiv.appendChild(nameSpan);
             
             const valueSpan = document.createElement('span');
-            valueSpan.className = 'property-value';
+            valueSpan.className = 'font-mono';
             
             if (value === null) {
-                valueSpan.classList.add('null');
+                valueSpan.classList.add('text-gray-500');
+                valueSpan.classList.add('italic');
                 valueSpan.textContent = 'null';
             } else if (Array.isArray(value)) {
                 valueSpan.textContent = JSON.stringify(value);
             } else {
                 const type = typeof value;
-                valueSpan.classList.add(type);
+                
+                if (type === 'string') {
+                    valueSpan.classList.add('text-green-600');
+                } else if (type === 'number') {
+                    valueSpan.classList.add('text-orange-600');
+                } else if (type === 'boolean') {
+                    valueSpan.classList.add('text-red-600');
+                }
                 
                 // Check if string might be parseable JSON
                 if (type === 'string' && value.trim().startsWith('{') && value.trim().endsWith('}')) {
@@ -1318,7 +1142,7 @@ func handleIndex() http.HandlerFunc {
                         valueSpan.textContent = JSON.stringify(parsed, null, 2);
                         
                         // Add a special class for JSON strings
-                        valueSpan.classList.add('json-string');
+                        valueSpan.className = 'font-mono p-3 mt-2 mb-2 block bg-gray-50 border border-gray-200 rounded-md overflow-x-auto whitespace-pre';
                     } catch (e) {
                         // If it fails to parse, display as regular string
                         valueSpan.textContent = '"' + value + '"';
