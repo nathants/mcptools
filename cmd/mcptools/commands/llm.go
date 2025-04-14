@@ -59,19 +59,27 @@ func LLMCmd() *cobra.Command {
 	var noColorFlag bool
 
 	cmd := &cobra.Command{
-		Use:   "llm [command args...]",
+		Use:   "llm [-- command args...]",
 		Short: "Start an interactive shell with LLM integration",
 		Long: `Start an interactive shell with LLM integration.
 This command connects to an LLM provider and provides a chat interface.
 The LLM can execute MCP tools on your behalf.
 
 Example usage:
-  mcp llm npx -y @modelcontextprotocol/server-filesystem ~
+  mcp llm -- npx -y @modelcontextprotocol/server-filesystem ~
   mcp llm -M https://ne.tools -M "npx -y @modelcontextprotocol/server-filesystem ~"
-  mcp llm --provider anthropic --model claude-3-opus-20240229`,
-		DisableFlagParsing: false,
+  mcp llm --provider anthropic --model claude-3-7-sonnet-20250219
+
+Note: When specifying a server command directly, use -- to separate MCP flags from the server command.`,
+		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		RunE: func(thisCmd *cobra.Command, args []string) error {
+			// Process the args manually to separate flags from positional args
+			processedArgs, err := processArgs(args, &providerFlag, &modelFlag, &apiKeyFlag, &multiServerFlags, &noColorFlag)
+			if err != nil {
+				return err
+			}
+
 			// If no-color flag is set, disable colors
 			if noColorFlag {
 				color.NoColor = true
@@ -98,15 +106,15 @@ Example usage:
 						serverCommands = append(serverCommands, client.ParseCommandString(serverFlag))
 					}
 				}
-			} else if len(args) > 0 {
+			} else if len(processedArgs) > 0 {
 				// Legacy mode - use positional args for the server command
 				// Check if it's an alias
-				if aliasCmd, found := alias.GetServerCommand(args[0]); found && len(args) == 1 {
+				if aliasCmd, found := alias.GetServerCommand(processedArgs[0]); found && len(processedArgs) == 1 {
 					// It's an alias, use the command from the alias
 					serverCommands = append(serverCommands, client.ParseCommandString(aliasCmd))
 				} else {
 					// Not an alias, use the args directly
-					serverCommands = append(serverCommands, args)
+					serverCommands = append(serverCommands, processedArgs)
 				}
 			}
 
@@ -128,7 +136,7 @@ Example usage:
 				case LLMProviderOpenAI:
 					model = "gpt-4o"
 				case LLMProviderAnthropic:
-					model = "claude-3-opus-20240229"
+					model = "claude-3-7-sonnet-20250219"
 				}
 			}
 
@@ -303,12 +311,6 @@ Be concise, accurate, and helpful.`, len(serverCommands)),
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&providerFlag, "provider", "", "LLM provider (openai, anthropic, mistral)")
-	cmd.Flags().StringVar(&modelFlag, "model", "", "The model to use")
-	cmd.Flags().StringVar(&apiKeyFlag, "api-key", "", "API key for the LLM provider")
-	cmd.Flags().StringArrayVarP(&multiServerFlags, "multi", "M", nil, "Multiple server commands to connect to (max 3)")
-	cmd.Flags().BoolVar(&noColorFlag, "no-color", false, "Disable colored output")
 
 	return cmd
 }
@@ -890,11 +892,44 @@ func callAnthropicWithTools(model, apiKey string, messages []map[string]interfac
 	// Format tools for Anthropic
 	anthropicTools := []map[string]interface{}{}
 	for _, tool := range tools {
+		// Skip tools without parameters for Anthropic
+		if tool.Parameters == nil {
+			serverColor.Fprintf(color.Output, "Skipping tool %s for Anthropic (no parameters)\n", tool.Name)
+			continue
+		}
+
+		// Verify we have properties to work with
+		props, hasProps := tool.Parameters["properties"].(map[string]interface{})
+		if !hasProps || len(props) == 0 {
+			serverColor.Fprintf(color.Output, "Skipping tool %s for Anthropic (no properties)\n", tool.Name)
+			continue
+		}
+
+		// Format the parameters specifically for Anthropic's expected schema structure
+		inputSchema := map[string]interface{}{
+			"type":       "object",
+			"properties": props,
+		}
+
+		// Add required field if present
+		if required, ok := tool.Parameters["required"].([]string); ok && len(required) > 0 {
+			inputSchema["required"] = required
+		}
+
 		anthropicTools = append(anthropicTools, map[string]interface{}{
 			"name":         tool.Name,
 			"description":  tool.Description,
-			"input_schema": tool.Parameters,
+			"input_schema": inputSchema,
 		})
+	}
+
+	// Note how many tools we included
+	serverColor.Fprintf(color.Output, "Registered %d tools for Anthropic (out of %d total)\n", len(anthropicTools), len(tools))
+
+	// Debug: Log the first tool format if any exist
+	if len(anthropicTools) > 0 {
+		debugBytes, _ := json.MarshalIndent(anthropicTools[0], "", "  ")
+		serverColor.Fprintf(color.Output, "Sample Anthropic tool format: %s\n", string(debugBytes))
 	}
 
 	// Prepare request
@@ -1212,4 +1247,113 @@ func convertMessages(messages []map[string]interface{}) []map[string]interface{}
 		convertedMessages = append(convertedMessages, convertedMsg)
 	}
 	return convertedMessages
+}
+
+// processArgs manually processes the arguments to separate flags from positional args
+func processArgs(args []string, providerFlag, modelFlag, apiKeyFlag *string, multiServerFlags *[]string, noColorFlag *bool) ([]string, error) {
+	var processedArgs []string
+
+	// Check for -- separator
+	dashDashIndex := -1
+	for i, arg := range args {
+		if arg == "--" {
+			dashDashIndex = i
+			break
+		}
+	}
+
+	// If -- separator is found, treat everything after it as positional args
+	if dashDashIndex != -1 {
+		// Process flags before the separator
+		flagArgs := args[:dashDashIndex]
+		if err := parseFlags(flagArgs, providerFlag, modelFlag, apiKeyFlag, multiServerFlags, noColorFlag); err != nil {
+			return nil, err
+		}
+
+		// Everything after -- is treated as server command
+		if dashDashIndex+1 < len(args) {
+			processedArgs = args[dashDashIndex+1:]
+		}
+		return processedArgs, nil
+	}
+
+	// No -- separator, try to auto-detect flags vs positional args
+	var flagArgs []string
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+
+		// If argument starts with - or --, it's a flag
+		if strings.HasPrefix(arg, "-") {
+			flagArgs = append(flagArgs, arg)
+
+			// Check if the flag needs a value
+			if arg == "-M" || arg == "--multi" ||
+				arg == "--provider" || arg == "--model" ||
+				arg == "--api-key" {
+				if i+1 < len(args) {
+					flagArgs = append(flagArgs, args[i+1])
+					i += 2
+					continue
+				}
+			}
+			i++
+			continue
+		}
+
+		// If we reach here, it's not a flag, so it must be the start of the server command
+		break
+	}
+
+	// Parse the flags we've collected
+	if err := parseFlags(flagArgs, providerFlag, modelFlag, apiKeyFlag, multiServerFlags, noColorFlag); err != nil {
+		return nil, err
+	}
+
+	// Everything else is treated as the server command
+	if i < len(args) {
+		processedArgs = args[i:]
+	}
+
+	return processedArgs, nil
+}
+
+// parseFlags parses the flag arguments and sets the corresponding values
+func parseFlags(flagArgs []string, providerFlag, modelFlag, apiKeyFlag *string, multiServerFlags *[]string, noColorFlag *bool) error {
+	for i := 0; i < len(flagArgs); i++ {
+		switch flagArgs[i] {
+		case "--provider":
+			if i+1 < len(flagArgs) {
+				*providerFlag = flagArgs[i+1]
+				i++
+			} else {
+				return fmt.Errorf("--provider requires a value")
+			}
+		case "--model":
+			if i+1 < len(flagArgs) {
+				*modelFlag = flagArgs[i+1]
+				i++
+			} else {
+				return fmt.Errorf("--model requires a value")
+			}
+		case "--api-key":
+			if i+1 < len(flagArgs) {
+				*apiKeyFlag = flagArgs[i+1]
+				i++
+			} else {
+				return fmt.Errorf("--api-key requires a value")
+			}
+		case "-M", "--multi":
+			if i+1 < len(flagArgs) {
+				*multiServerFlags = append(*multiServerFlags, flagArgs[i+1])
+				i++
+			} else {
+				return fmt.Errorf("--multi requires a value")
+			}
+		case "--no-color":
+			*noColorFlag = true
+		}
+	}
+
+	return nil
 }
