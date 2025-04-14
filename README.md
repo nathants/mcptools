@@ -28,6 +28,7 @@
   - [Output Formats](#output-formats)
   - [Commands](#commands)
   - [Interactive Shell](#interactive-shell)
+  - [Web Interface](#web-interface)
   - [Project Scaffolding](#project-scaffolding)
 - [Server Aliases](#server-aliases)
 - [LLM Apps Config Management](#llm-apps-config-management)
