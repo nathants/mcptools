@@ -203,10 +203,12 @@ func (t *Stdio) setupCommand() (stdin io.WriteCloser, stdout io.ReadCloser, cmd 
 // initialize sends the initialization request and waits for response and then sends the initialized
 // notification.
 func (t *Stdio) initialize(stdin io.WriteCloser, stdout io.ReadCloser) error {
+	// Create initialization request with current ID
+	initRequestID := t.nextID
 	initRequest := Request{
 		JSONRPC: "2.0",
 		Method:  "initialize",
-		ID:      t.nextID,
+		ID:      initRequestID,
 		Params: map[string]any{
 			"clientInfo": map[string]any{
 				"name":    "f/mcptools",
@@ -222,11 +224,13 @@ func (t *Stdio) initialize(stdin io.WriteCloser, stdout io.ReadCloser) error {
 		return fmt.Errorf("init request failed: %w", err)
 	}
 
+	// readResponse now properly checks for matching response ID
 	_, err := t.readResponse(stdout)
 	if err != nil {
 		return fmt.Errorf("init response failed: %w", err)
 	}
 
+	// Send initialized notification (notifications don't have IDs)
 	initNotification := Request{
 		JSONRPC: "2.0",
 		Method:  "notifications/initialized",
@@ -272,34 +276,85 @@ func (t *Stdio) sendRequest(stdin io.WriteCloser, request Request) error {
 	return nil
 }
 
-// readResponse reads and parses a JSON-RPC response.
+// readResponse reads and parses a JSON-RPC response matching the given request ID.
 func (t *Stdio) readResponse(stdout io.ReadCloser) (*Response, error) {
 	reader := bufio.NewReader(stdout)
-	line, err := reader.ReadBytes('\n')
-	if err != nil {
-		return nil, fmt.Errorf("error reading from stdout: %w", err)
-	}
 
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Read from stdout: %s", string(line))
-	}
+	// Keep track of the expected response ID (the last request ID we sent)
+	expectedID := t.nextID - 1
 
-	if len(line) == 0 {
-		return nil, fmt.Errorf("no response from command")
-	}
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			return nil, fmt.Errorf("error reading from stdout: %w", err)
+		}
 
-	var response Response
-	if unmarshalErr := json.Unmarshal(line, &response); unmarshalErr != nil {
-		return nil, fmt.Errorf("error unmarshaling response: %w, response: %s", unmarshalErr, string(line))
-	}
+		if t.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Read from stdout: %s", string(line))
+		}
 
-	if response.Error != nil {
-		return nil, fmt.Errorf("RPC error %d: %s", response.Error.Code, response.Error.Message)
-	}
+		if len(line) == 0 {
+			return nil, fmt.Errorf("no response from command")
+		}
 
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Successfully parsed response\n")
-	}
+		// First check if this is a notification (no ID field)
+		var msg map[string]interface{}
+		if err := json.Unmarshal(line, &msg); err != nil {
+			return nil, fmt.Errorf("error unmarshaling message: %w, response: %s", err, string(line))
+		}
 
-	return &response, nil
+		// If it's a notification, display it and continue reading
+		if methodVal, hasMethod := msg["method"]; hasMethod && msg["id"] == nil {
+			method, ok := methodVal.(string)
+			if ok && method == "notifications/message" {
+				if paramsVal, hasParams := msg["params"].(map[string]interface{}); hasParams {
+					level, _ := paramsVal["level"].(string)
+					data, _ := paramsVal["data"].(string)
+
+					// Format and print the notification based on level
+					switch level {
+					case "error":
+						fmt.Fprintf(os.Stderr, "\033[31m[ERROR] %s\033[0m\n", data) // Red
+					case "warning":
+						fmt.Fprintf(os.Stderr, "\033[33m[WARNING] %s\033[0m\n", data) // Yellow
+					case "alert":
+						fmt.Fprintf(os.Stderr, "\033[35m[ALERT] %s\033[0m\n", data) // Magenta
+					case "info":
+						fmt.Fprintf(os.Stderr, "\033[36m[INFO] %s\033[0m\n", data) // Cyan
+					default:
+						fmt.Fprintf(os.Stderr, "\033[37m[%s] %s\033[0m\n", level, data) // White for unknown levels
+					}
+				}
+			} else {
+				// For other notification types
+				fmt.Fprintf(os.Stderr, "[Notification] %s\n", string(line))
+			}
+			continue
+		}
+
+		// Parse as a proper response
+		var response Response
+		if unmarshalErr := json.Unmarshal(line, &response); unmarshalErr != nil {
+			return nil, fmt.Errorf("error unmarshaling response: %w, response: %s", unmarshalErr, string(line))
+		}
+
+		// If this response has an ID field and it matches our expected ID, or if it has an error, return it
+		if response.ID == expectedID || response.Error != nil {
+			if response.Error != nil {
+				return nil, fmt.Errorf("RPC error %d: %s", response.Error.Code, response.Error.Message)
+			}
+
+			if t.debug {
+				fmt.Fprintf(os.Stderr, "DEBUG: Successfully parsed response with matching ID: %d\n", response.ID)
+			}
+
+			return &response, nil
+		}
+
+		// Otherwise, this is a response for a different request
+		if t.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: Received response for request ID %d, expecting %d. Continuing to read.\n",
+				response.ID, expectedID)
+		}
+	}
 }
