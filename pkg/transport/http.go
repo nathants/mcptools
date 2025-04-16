@@ -78,66 +78,39 @@ func NewHTTP(address string) (*HTTP, error) {
 		return nil, fmt.Errorf("timeout waiting for SSE response")
 	}
 
-	return &HTTP{
+	client := &HTTP{
 		// Use the SSE message address as the base address for the HTTP transport
-		address: address + messageAddress,
+		address: address + "/sse" + messageAddress,
 		nextID:  1,
 		debug:   debug,
 		eventCh: eventCh,
-	}, nil
+	}
+
+	// Send initialize request
+	_, err = client.Execute("initialize", map[string]any{
+		"clientInfo": map[string]any{
+			"name":    "mcp-client",
+			"version": "0.1.0",
+		},
+		"capabilities":    map[string]any{},
+		"protocolVersion": "2024-11-05",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error sending initialize request: %w", err)
+	}
+
+	// Send intialized notification
+	if err := client.send("notifications/initialized", nil); err != nil {
+		return nil, fmt.Errorf("error sending initialized notification: %w", err)
+	}
+
+	return client, nil
 }
 
 // Execute implements the Transport via JSON-RPC over HTTP.
 func (t *HTTP) Execute(method string, params any) (map[string]any, error) {
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Connecting to server: %s\n", t.address)
-	}
-
-	request := Request{
-		JSONRPC: "2.0",
-		Method:  method,
-		ID:      t.nextID,
-		Params:  params,
-	}
-	t.nextID++
-
-	requestJSON, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling request: %w", err)
-	}
-
-	requestJSON = append(requestJSON, '\n')
-
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Sending request: %s\n", string(requestJSON))
-	}
-
-	resp, err := http.Post(t.address, "application/json", bytes.NewBuffer(requestJSON))
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %w", err)
-	}
-
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Sent request to server\n")
-	}
-
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Fprintf(os.Stderr, "Failed to close response body: %v\n", closeErr)
-		}
-	}()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response: %w", err)
-	}
-
-	if t.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: Read from server: %s\n", string(body))
-	}
-
-	if len(body) == 0 {
-		return nil, fmt.Errorf("no response from server")
+	if err := t.send(method, params); err != nil {
+		return nil, err
 	}
 
 	// After sending the request, we listen the SSE channel for the response
@@ -160,4 +133,55 @@ func (t *HTTP) Execute(method string, params any) (map[string]any, error) {
 	}
 
 	return response.Result, nil
+}
+
+func (t *HTTP) send(method string, params any) error {
+	if t.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: Connecting to server: %s\n", t.address)
+	}
+
+	request := Request{
+		JSONRPC: "2.0",
+		Method:  method,
+		ID:      t.nextID,
+		Params:  params,
+	}
+	t.nextID++
+
+	requestJSON, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("error marshaling request: %w", err)
+	}
+
+	requestJSON = append(requestJSON, '\n')
+
+	if t.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: Sending request: %s\n", string(requestJSON))
+	}
+
+	resp, err := http.Post(t.address, "application/json", bytes.NewBuffer(requestJSON))
+	if err != nil {
+		return fmt.Errorf("error sending request: %w", err)
+	}
+
+	if t.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: Sent request to server\n")
+	}
+
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close response body: %v\n", closeErr)
+		}
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response: %w", err)
+	}
+
+	if t.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: Read from server: %s\n", string(body))
+	}
+
+	return nil
 }
