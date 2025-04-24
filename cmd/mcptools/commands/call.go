@@ -50,6 +50,9 @@ func CallCmd() *cobra.Command {
 					entityName = cmdArgs[i]
 					entityExtracted = true
 					i++
+				case cmdArgs[i] == FlagServerLogs:
+					ShowServerLogs = true
+					i++
 				default:
 					parsedArgs = append(parsedArgs, cmdArgs[i])
 					i++
