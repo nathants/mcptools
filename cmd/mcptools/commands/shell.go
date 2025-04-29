@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,7 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/f/mcptools/pkg/client"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/peterh/liner"
 	"github.com/spf13/cobra"
 )
@@ -48,15 +50,9 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			mcpClient, clientErr := CreateClientFunc(parsedArgs, client.CloseTransportAfterExecute(false))
+			mcpClient, clientErr := CreateClientFuncNew(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
-				os.Exit(1)
-			}
-
-			_, listErr := mcpClient.ListTools()
-			if listErr != nil {
-				fmt.Fprintf(os.Stderr, "Error connecting to MCP server: %v\n", listErr)
 				os.Exit(1)
 			}
 
@@ -111,19 +107,25 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 
 				switch command {
 				case "tools":
-					resp, listErr = mcpClient.ListTools()
+					var listToolsResult *mcp.ListToolsResult
+					listToolsResult, listErr = mcpClient.ListTools(context.Background(), mcp.ListToolsRequest{})
+					resp = map[string]any{"tools": ConvertJSONToSlice(listToolsResult.Tools)}
 					if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 						continue
 					}
 				case "resources":
-					resp, listErr = mcpClient.ListResources()
+					var listResourcesResult *mcp.ListResourcesResult
+					listResourcesResult, listErr = mcpClient.ListResources(context.Background(), mcp.ListResourcesRequest{})
+					resp = map[string]any{"resources": ConvertJSONToSlice(listResourcesResult.Resources)}
 					if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 						continue
 					}
 				case "prompts":
-					resp, listErr = mcpClient.ListPrompts()
+					var listPromptsResult *mcp.ListPromptsResult
+					listPromptsResult, listErr = mcpClient.ListPrompts(context.Background(), mcp.ListPromptsRequest{})
+					resp = map[string]any{"prompts": ConvertJSONToSlice(listPromptsResult.Prompts)}
 					if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 						continue
@@ -208,11 +210,24 @@ func callCommand(thisCmd *cobra.Command, mcpClient *client.Client, commandArgs [
 
 	switch entityType {
 	case EntityTypeTool:
-		resp, execErr = mcpClient.CallTool(entityName, params)
+		var toolResponse *mcp.CallToolResult
+		request := mcp.CallToolRequest{}
+		request.Params.Name = entityName
+		request.Params.Arguments = params
+		toolResponse, execErr = mcpClient.CallTool(context.Background(), request)
+		resp = ConvertJSONToMap(toolResponse)
 	case EntityTypeRes:
-		resp, execErr = mcpClient.ReadResource(entityName)
+		var resourceResponse *mcp.ReadResourceResult
+		request := mcp.ReadResourceRequest{}
+		request.Params.URI = entityName
+		resourceResponse, execErr = mcpClient.ReadResource(context.Background(), request)
+		resp = ConvertJSONToMap(resourceResponse)
 	case EntityTypePrompt:
-		resp, execErr = mcpClient.GetPrompt(entityName)
+		var promptResponse *mcp.GetPromptResult
+		request := mcp.GetPromptRequest{}
+		request.Params.Name = entityName
+		promptResponse, execErr = mcpClient.GetPrompt(context.Background(), request)
+		resp = ConvertJSONToMap(promptResponse)
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unsupported entity type: %s\n", entityType)
 	}

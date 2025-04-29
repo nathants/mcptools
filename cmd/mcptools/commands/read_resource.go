@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -63,14 +65,16 @@ func ReadResourceCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			mcpClient, clientErr := CreateClientFunc(parsedArgs)
+			mcpClient, clientErr := CreateClientFuncNew(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
 			}
 
-			resp, execErr := mcpClient.ReadResource(resourceName)
-			if formatErr := FormatAndPrintResponse(thisCmd, resp, execErr); formatErr != nil {
+			request := mcp.ReadResourceRequest{}
+			request.Params.URI = resourceName
+			resp, execErr := mcpClient.ReadResource(context.Background(), request)
+			if formatErr := FormatAndPrintResponse(thisCmd, ConvertJSONToMap(resp), execErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

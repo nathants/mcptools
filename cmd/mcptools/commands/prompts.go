@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -22,15 +24,16 @@ func PromptsCmd() *cobra.Command {
 
 			parsedArgs := ProcessFlags(args)
 
-			mcpClient, err := CreateClientFunc(parsedArgs)
+			mcpClient, err := CreateClientFuncNew(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
 
-			resp, listErr := mcpClient.ListPrompts()
-			if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
+			resp, listErr := mcpClient.ListPrompts(context.Background(), mcp.ListPromptsRequest{})
+			promptsMap := map[string]any{"prompts": ConvertJSONToSlice(resp.Prompts)}
+			if formatErr := FormatAndPrintResponse(thisCmd, promptsMap, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

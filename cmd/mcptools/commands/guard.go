@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/f/mcptools/pkg/alias"
-	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/guard"
 	"github.com/spf13/cobra"
 )
@@ -36,10 +35,10 @@ Examples:
   mcp guard --allow tools:read_* --deny edit_*,write_*,create_* npx run @modelcontextprotocol/server-filesystem ~
   mcp guard --allow prompts:system_* --deny tools:execute_* npx run @modelcontextprotocol/server-filesystem ~
   mcp guard --allow tools:read_* fs  # Using an alias
-  
+
 Patterns can include wildcards:
   * matches any sequence of characters
-  
+
 Entity types:
   tools: filter available tools
   prompts: filter available prompts
@@ -76,7 +75,7 @@ Entity types:
 				if found {
 					fmt.Fprintf(os.Stderr, "Expanding alias '%s' to '%s'\n", aliasName, serverCmd)
 					// Replace the alias with the actual command
-					parsedArgs = client.ParseCommandString(serverCmd)
+					parsedArgs = ParseCommandString(serverCmd)
 				}
 			}
 

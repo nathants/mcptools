@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -93,7 +95,7 @@ func CallCmd() *cobra.Command {
 				}
 			}
 
-			mcpClient, clientErr := CreateClientFunc(parsedArgs)
+			mcpClient, clientErr := CreateClientFuncNew(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
@@ -104,11 +106,24 @@ func CallCmd() *cobra.Command {
 
 			switch entityType {
 			case EntityTypeTool:
-				resp, execErr = mcpClient.CallTool(entityName, params)
+				var toolResponse *mcp.CallToolResult
+				request := mcp.CallToolRequest{}
+				request.Params.Name = entityName
+				request.Params.Arguments = params
+				toolResponse, execErr = mcpClient.CallTool(context.Background(), request)
+				resp = ConvertJSONToMap(toolResponse)
 			case EntityTypeRes:
-				resp, execErr = mcpClient.ReadResource(entityName)
+				var resourceResponse *mcp.ReadResourceResult
+				request := mcp.ReadResourceRequest{}
+				request.Params.URI = entityName
+				resourceResponse, execErr = mcpClient.ReadResource(context.Background(), request)
+				resp = ConvertJSONToMap(resourceResponse)
 			case EntityTypePrompt:
-				resp, execErr = mcpClient.GetPrompt(entityName)
+				var promptResponse *mcp.GetPromptResult
+				request := mcp.GetPromptRequest{}
+				request.Params.Name = entityName
+				promptResponse, execErr = mcpClient.GetPrompt(context.Background(), request)
+				resp = ConvertJSONToMap(promptResponse)
 			default:
 				fmt.Fprintf(os.Stderr, "Error: unsupported entity type: %s\n", entityType)
 				os.Exit(1)
