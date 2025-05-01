@@ -57,7 +57,7 @@ func (m *MockTransport) Close() error {
 // setupMockClient creates a mock client with the given execute function and returns cleanup function.
 func setupMockClient(executeFunc func(method string, _ any) (map[string]any, error)) func() {
 	// Save original function and restore later
-	originalFunc := CreateClientFuncNew
+	originalFunc := CreateClientFunc
 
 	mockTransport := &MockTransport{
 		ExecuteFunc: executeFunc,
@@ -67,13 +67,13 @@ func setupMockClient(executeFunc func(method string, _ any) (map[string]any, err
 	_, _ = mockClient.Initialize(context.Background(), mcp.InitializeRequest{})
 
 	// Override the function that creates clients
-	CreateClientFuncNew = func(_ []string, _ ...client.ClientOption) (*client.Client, error) {
+	CreateClientFunc = func(_ []string, _ ...client.ClientOption) (*client.Client, error) {
 		return mockClient, nil
 	}
 
 	// Return a cleanup function
 	return func() {
-		CreateClientFuncNew = originalFunc
+		CreateClientFunc = originalFunc
 	}
 }
 

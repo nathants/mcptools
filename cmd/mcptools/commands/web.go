@@ -49,7 +49,7 @@ func WebCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			mcpClient, clientErr := CreateClientFuncNew(parsedArgs)
+			mcpClient, clientErr := CreateClientFunc(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)

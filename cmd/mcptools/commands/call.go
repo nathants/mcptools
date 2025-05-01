@@ -95,7 +95,7 @@ func CallCmd() *cobra.Command {
 				}
 			}
 
-			mcpClient, clientErr := CreateClientFuncNew(parsedArgs)
+			mcpClient, clientErr := CreateClientFunc(parsedArgs)
 			if clientErr != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)

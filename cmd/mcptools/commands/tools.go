@@ -23,7 +23,7 @@ func ToolsCmd() *cobra.Command {
 			}
 
 			parsedArgs := ProcessFlags(args)
-			mcpClient, err := CreateClientFuncNew(parsedArgs)
+			mcpClient, err := CreateClientFunc(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Example: mcp tools npx -y @modelcontextprotocol/server-filesystem ~\n")

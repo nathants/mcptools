@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/f/mcptools/pkg/alias"
-	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/jsonutils"
-	sdkclient "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/spf13/cobra"
@@ -29,38 +28,7 @@ func IsHTTP(str string) bool {
 
 // CreateClientFunc is the function used to create MCP clients.
 // This can be replaced in tests to use a mock transport.
-var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Client, error) {
-	if len(args) == 0 {
-		return nil, ErrCommandRequired
-	}
-
-	opts = append(opts, client.SetShowServerLogs(ShowServerLogs))
-
-	// Check if the first argument is an alias
-	if len(args) == 1 {
-		server, found := alias.GetServerCommand(args[0])
-		if found {
-			if IsHTTP(server) {
-				return client.NewHTTP(server), nil
-			}
-			cmdParts := client.ParseCommandString(server)
-			c := client.NewStdio(cmdParts, opts...)
-			return c, nil
-		}
-	}
-
-	if len(args) == 1 && IsHTTP(args[0]) {
-		return client.NewHTTP(args[0]), nil
-	}
-
-	c := client.NewStdio(args, opts...)
-
-	return c, nil
-}
-
-// CreateClientFuncNew is the function used to create MCP clients.
-// This can be replaced in tests to use a mock transport.
-var CreateClientFuncNew = func(args []string, _ ...sdkclient.ClientOption) (*sdkclient.Client, error) {
+var CreateClientFunc = func(args []string, _ ...client.ClientOption) (*client.Client, error) {
 	if len(args) == 0 {
 		return nil, ErrCommandRequired
 	}
@@ -75,20 +43,20 @@ var CreateClientFuncNew = func(args []string, _ ...sdkclient.ClientOption) (*sdk
 		}
 	}
 
-	var c *sdkclient.Client
+	var c *client.Client
 	var err error
 
 	if len(args) == 1 && IsHTTP(args[0]) {
-		c, err = sdkclient.NewSSEMCPClient(args[0])
+		c, err = client.NewSSEMCPClient(args[0])
 	} else {
-		c, err = sdkclient.NewStdioMCPClient(args[0], nil, args[1:]...)
+		c, err = client.NewStdioMCPClient(args[0], nil, args[1:]...)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	stdErr, ok := sdkclient.GetStderr(c)
+	stdErr, ok := client.GetStderr(c)
 	if ok && ShowServerLogs {
 		go func() {
 			scanner := bufio.NewScanner(stdErr)
