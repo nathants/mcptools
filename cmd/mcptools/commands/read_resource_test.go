@@ -37,13 +37,11 @@ func TestReadResourceCmdRun_Success(t *testing.T) {
 
 	// Given: a mock client that returns a successful read resource response
 	mockResponse := map[string]any{
-		"result": map[string]any{
-			"contents": []any{
-				map[string]any{
-					"uri":      "test://foo",
-					"mimeType": "text/plain",
-					"text":     "bar",
-				},
+		"contents": []any{
+			map[string]any{
+				"uri":      "test://foo",
+				"mimeType": "text/plain",
+				"text":     "bar",
 			},
 		},
 	}

@@ -187,7 +187,7 @@ func TestShellCallCommand(t *testing.T) {
 			name:            "tool_name without params",
 			input:           "test-tool\n/q\n",
 			expectedOutputs: []string{"Tool executed successfully"},
-			expectedParams:  map[string]any{"name": "test-tool", "arguments": map[string]any{}},
+			expectedParams:  map[string]any{"name": "test-tool"},
 			mockResponses: map[string]map[string]any{
 				"tools/call": {
 					"content": []any{map[string]any{"type": "text", "text": "Tool executed successfully"}},
@@ -198,7 +198,7 @@ func TestShellCallCommand(t *testing.T) {
 			name:            "call tool without params",
 			input:           "call test-tool\n/q\n",
 			expectedOutputs: []string{"Tool executed successfully"},
-			expectedParams:  map[string]any{"name": "test-tool", "arguments": map[string]any{}},
+			expectedParams:  map[string]any{"name": "test-tool"},
 			mockResponses: map[string]map[string]any{
 				"tools/call": {
 					"content": []any{map[string]any{"type": "text", "text": "Tool executed successfully"}},
@@ -308,8 +308,9 @@ func TestShellCallCommand(t *testing.T) {
 					}
 					t.Errorf("expected method %q, got %q", method, mockResponse)
 				}
-				if !reflect.DeepEqual(params, tt.expectedParams) {
-					t.Errorf("expected params %v, got %v", tt.expectedParams, params)
+				jsonParams := ConvertJSONToMap(params)
+				if !reflect.DeepEqual(jsonParams, tt.expectedParams) {
+					t.Errorf("expected params %v, got %v", tt.expectedParams, jsonParams)
 				}
 				return mockResponse, nil
 			})
