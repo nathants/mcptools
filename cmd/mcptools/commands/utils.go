@@ -23,7 +23,7 @@ var (
 
 // IsHTTP returns true if the string is a valid HTTP URL.
 func IsHTTP(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "localhost:")
 }
 
 // CreateClientFunc is the function used to create MCP clients.
@@ -48,6 +48,10 @@ var CreateClientFunc = func(args []string, _ ...client.ClientOption) (*client.Cl
 
 	if len(args) == 1 && IsHTTP(args[0]) {
 		c, err = client.NewSSEMCPClient(args[0])
+		if err != nil {
+			return nil, err
+		}
+		err = c.Start(context.Background())
 	} else {
 		c, err = client.NewStdioMCPClient(args[0], nil, args[1:]...)
 	}
