@@ -58,7 +58,7 @@ var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Clien
 
 // CreateClientFuncNew is the function used to create MCP clients.
 // This can be replaced in tests to use a mock transport.
-var CreateClientFuncNew = func(args []string, opts ...sdkclient.ClientOption) (*sdkclient.Client, error) {
+var CreateClientFuncNew = func(args []string, _ ...sdkclient.ClientOption) (*sdkclient.Client, error) {
 	if len(args) == 0 {
 		return nil, ErrCommandRequired
 	}
@@ -162,16 +162,17 @@ func ConvertJSONToSlice(jsonData any) []any {
 	}
 	var toolsSlice []any
 	data, _ := json.Marshal(jsonData)
-	json.Unmarshal(data, &toolsSlice)
+	_ = json.Unmarshal(data, &toolsSlice)
 	return toolsSlice
 }
 
+// ConvertJSONToMap converts a JSON serialized object to a map of strings to any type.
 func ConvertJSONToMap(jsonData any) map[string]any {
 	if jsonData == nil {
 		return nil
 	}
 	var promptMap map[string]any
 	data, _ := json.Marshal(jsonData)
-	json.Unmarshal(data, &promptMap)
+	_ = json.Unmarshal(data, &promptMap)
 	return promptMap
 }

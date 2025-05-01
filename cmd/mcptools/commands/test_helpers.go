@@ -18,12 +18,13 @@ type MockTransport struct {
 	ExecuteFunc func(method string, params any) (map[string]any, error)
 }
 
-func (m *MockTransport) Start(ctx context.Context) error {
+// Start is a no-op for the mock transport.
+func (m *MockTransport) Start(_ context.Context) error {
 	return nil
 }
 
-// Execute calls the mock implementation.
-func (m *MockTransport) SendRequest(ctx context.Context, request transport.JSONRPCRequest) (*transport.JSONRPCResponse, error) {
+// SendRequest overrides the default implementation of the transport.SendRequest method.
+func (m *MockTransport) SendRequest(_ context.Context, request transport.JSONRPCRequest) (*transport.JSONRPCResponse, error) {
 	if request.Method == "initialize" {
 		return &transport.JSONRPCResponse{Result: json.RawMessage(`{}`)}, nil
 	}
@@ -39,13 +40,16 @@ func (m *MockTransport) SendRequest(ctx context.Context, request transport.JSONR
 	return &transport.JSONRPCResponse{Result: json.RawMessage(responseBytes)}, nil
 }
 
-func (m *MockTransport) SendNotification(ctx context.Context, notification mcp.JSONRPCNotification) error {
+// SendNotification is a no-op for the mock transport.
+func (m *MockTransport) SendNotification(_ context.Context, _ mcp.JSONRPCNotification) error {
 	return nil
 }
 
-func (m *MockTransport) SetNotificationHandler(handler func(notification mcp.JSONRPCNotification)) {
+// SetNotificationHandler is a no-op for the mock transport.
+func (m *MockTransport) SetNotificationHandler(_ func(notification mcp.JSONRPCNotification)) {
 }
 
+// Close is a no-op for the mock transport.
 func (m *MockTransport) Close() error {
 	return nil
 }
@@ -60,7 +64,7 @@ func setupMockClient(executeFunc func(method string, _ any) (map[string]any, err
 	}
 
 	mockClient := client.NewClient(mockTransport)
-	mockClient.Initialize(context.Background(), mcp.InitializeRequest{})
+	_, _ = mockClient.Initialize(context.Background(), mcp.InitializeRequest{})
 
 	// Override the function that creates clients
 	CreateClientFuncNew = func(_ []string, _ ...client.ClientOption) (*client.Client, error) {
