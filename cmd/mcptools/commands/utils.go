@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/f/mcptools/pkg/alias"
 	"github.com/f/mcptools/pkg/client"
@@ -86,9 +88,30 @@ var CreateClientFuncNew = func(args []string, _ ...sdkclient.ClientOption) (*sdk
 		return nil, err
 	}
 
-	_, initErr := c.Initialize(context.Background(), mcp.InitializeRequest{})
-	if initErr != nil {
-		return nil, initErr
+	stdErr, ok := sdkclient.GetStderr(c)
+	if ok && ShowServerLogs {
+		go func() {
+			scanner := bufio.NewScanner(stdErr)
+			for scanner.Scan() {
+				fmt.Printf("[>] %s\n", scanner.Text())
+			}
+		}()
+	}
+
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := c.Initialize(context.Background(), mcp.InitializeRequest{})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			return nil, fmt.Errorf("init error: %w", err)
+		}
+	case <-time.After(10 * time.Second):
+		return nil, fmt.Errorf("initialization timed out")
 	}
 
 	return c, nil
