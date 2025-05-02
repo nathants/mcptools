@@ -74,7 +74,15 @@ func ReadResourceCmd() *cobra.Command {
 			request := mcp.ReadResourceRequest{}
 			request.Params.URI = resourceName
 			resp, execErr := mcpClient.ReadResource(context.Background(), request)
-			if formatErr := FormatAndPrintResponse(thisCmd, ConvertJSONToMap(resp), execErr); formatErr != nil {
+
+			var responseMap map[string]any
+			if execErr == nil && resp != nil {
+				responseMap = ConvertJSONToMap(resp)
+			} else {
+				responseMap = map[string]any{}
+			}
+
+			if formatErr := FormatAndPrintResponse(thisCmd, responseMap, execErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

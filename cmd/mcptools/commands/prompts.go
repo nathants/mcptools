@@ -32,7 +32,13 @@ func PromptsCmd() *cobra.Command {
 			}
 
 			resp, listErr := mcpClient.ListPrompts(context.Background(), mcp.ListPromptsRequest{})
-			promptsMap := map[string]any{"prompts": ConvertJSONToSlice(resp.Prompts)}
+
+			var prompts []any
+			if listErr == nil && resp != nil {
+				prompts = ConvertJSONToSlice(resp.Prompts)
+			}
+
+			promptsMap := map[string]any{"prompts": prompts}
 			if formatErr := FormatAndPrintResponse(thisCmd, promptsMap, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
