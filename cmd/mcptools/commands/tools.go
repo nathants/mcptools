@@ -31,7 +31,13 @@ func ToolsCmd() *cobra.Command {
 			}
 
 			resp, listErr := mcpClient.ListTools(context.Background(), mcp.ListToolsRequest{})
-			toolsMap := map[string]any{"tools": ConvertJSONToSlice(resp.Tools)}
+
+			var tools []any
+			if listErr == nil && resp != nil {
+				tools = ConvertJSONToSlice(resp.Tools)
+			}
+
+			toolsMap := map[string]any{"tools": tools}
 			if formatErr := FormatAndPrintResponse(thisCmd, toolsMap, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)

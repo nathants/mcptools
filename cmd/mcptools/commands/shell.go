@@ -109,7 +109,13 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 				case "tools":
 					var listToolsResult *mcp.ListToolsResult
 					listToolsResult, listErr = mcpClient.ListTools(context.Background(), mcp.ListToolsRequest{})
-					resp = map[string]any{"tools": ConvertJSONToSlice(listToolsResult.Tools)}
+
+					var tools []any
+					if listErr == nil && listToolsResult != nil {
+						tools = ConvertJSONToSlice(listToolsResult.Tools)
+					}
+
+					resp = map[string]any{"tools": tools}
 					if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 						continue
@@ -117,7 +123,13 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 				case "resources":
 					var listResourcesResult *mcp.ListResourcesResult
 					listResourcesResult, listErr = mcpClient.ListResources(context.Background(), mcp.ListResourcesRequest{})
-					resp = map[string]any{"resources": ConvertJSONToSlice(listResourcesResult.Resources)}
+
+					var resources []any
+					if listErr == nil && listResourcesResult != nil {
+						resources = ConvertJSONToSlice(listResourcesResult.Resources)
+					}
+
+					resp = map[string]any{"resources": resources}
 					if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 						continue
@@ -125,7 +137,13 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 				case "prompts":
 					var listPromptsResult *mcp.ListPromptsResult
 					listPromptsResult, listErr = mcpClient.ListPrompts(context.Background(), mcp.ListPromptsRequest{})
-					resp = map[string]any{"prompts": ConvertJSONToSlice(listPromptsResult.Prompts)}
+
+					var prompts []any
+					if listErr == nil && listPromptsResult != nil {
+						prompts = ConvertJSONToSlice(listPromptsResult.Prompts)
+					}
+
+					resp = map[string]any{"prompts": prompts}
 					if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 						continue
@@ -215,19 +233,31 @@ func callCommand(thisCmd *cobra.Command, mcpClient *client.Client, commandArgs [
 		request.Params.Name = entityName
 		request.Params.Arguments = params
 		toolResponse, execErr = mcpClient.CallTool(context.Background(), request)
-		resp = ConvertJSONToMap(toolResponse)
+		if execErr == nil && toolResponse != nil {
+			resp = ConvertJSONToMap(toolResponse)
+		} else {
+			resp = map[string]any{}
+		}
 	case EntityTypeRes:
 		var resourceResponse *mcp.ReadResourceResult
 		request := mcp.ReadResourceRequest{}
 		request.Params.URI = entityName
 		resourceResponse, execErr = mcpClient.ReadResource(context.Background(), request)
-		resp = ConvertJSONToMap(resourceResponse)
+		if execErr == nil && resourceResponse != nil {
+			resp = ConvertJSONToMap(resourceResponse)
+		} else {
+			resp = map[string]any{}
+		}
 	case EntityTypePrompt:
 		var promptResponse *mcp.GetPromptResult
 		request := mcp.GetPromptRequest{}
 		request.Params.Name = entityName
 		promptResponse, execErr = mcpClient.GetPrompt(context.Background(), request)
-		resp = ConvertJSONToMap(promptResponse)
+		if execErr == nil && promptResponse != nil {
+			resp = ConvertJSONToMap(promptResponse)
+		} else {
+			resp = map[string]any{}
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unsupported entity type: %s\n", entityType)
 	}

@@ -111,19 +111,31 @@ func CallCmd() *cobra.Command {
 				request.Params.Name = entityName
 				request.Params.Arguments = params
 				toolResponse, execErr = mcpClient.CallTool(context.Background(), request)
-				resp = ConvertJSONToMap(toolResponse)
+				if execErr == nil && toolResponse != nil {
+					resp = ConvertJSONToMap(toolResponse)
+				} else {
+					resp = map[string]any{}
+				}
 			case EntityTypeRes:
 				var resourceResponse *mcp.ReadResourceResult
 				request := mcp.ReadResourceRequest{}
 				request.Params.URI = entityName
 				resourceResponse, execErr = mcpClient.ReadResource(context.Background(), request)
-				resp = ConvertJSONToMap(resourceResponse)
+				if execErr == nil && resourceResponse != nil {
+					resp = ConvertJSONToMap(resourceResponse)
+				} else {
+					resp = map[string]any{}
+				}
 			case EntityTypePrompt:
 				var promptResponse *mcp.GetPromptResult
 				request := mcp.GetPromptRequest{}
 				request.Params.Name = entityName
 				promptResponse, execErr = mcpClient.GetPrompt(context.Background(), request)
-				resp = ConvertJSONToMap(promptResponse)
+				if execErr == nil && promptResponse != nil {
+					resp = ConvertJSONToMap(promptResponse)
+				} else {
+					resp = map[string]any{}
+				}
 			default:
 				fmt.Fprintf(os.Stderr, "Error: unsupported entity type: %s\n", entityType)
 				os.Exit(1)

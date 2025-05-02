@@ -32,7 +32,13 @@ func ResourcesCmd() *cobra.Command {
 			}
 
 			resp, listErr := mcpClient.ListResources(context.Background(), mcp.ListResourcesRequest{})
-			resourcesMap := map[string]any{"resources": ConvertJSONToSlice(resp.Resources)}
+
+			var resources []any
+			if listErr == nil && resp != nil {
+				resources = ConvertJSONToSlice(resp.Resources)
+			}
+
+			resourcesMap := map[string]any{"resources": resources}
 			if formatErr := FormatAndPrintResponse(thisCmd, resourcesMap, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
