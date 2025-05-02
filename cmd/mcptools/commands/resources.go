@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +31,15 @@ func ResourcesCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			resp, listErr := mcpClient.ListResources()
-			if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
+			resp, listErr := mcpClient.ListResources(context.Background(), mcp.ListResourcesRequest{})
+
+			var resources []any
+			if listErr == nil && resp != nil {
+				resources = ConvertJSONToSlice(resp.Resources)
+			}
+
+			resourcesMap := map[string]any{"resources": resources}
+			if formatErr := FormatAndPrintResponse(thisCmd, resourcesMap, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

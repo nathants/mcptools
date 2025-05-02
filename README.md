@@ -147,7 +147,7 @@ mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 Uses HTTP and Server-Sent Events (SSE) to communicate with an MCP server via JSON-RPC 2.0. This is useful for connecting to remote servers that implement the MCP protocol.
 
 ```bash
-mcp tools http://127.0.0.1:3001
+mcp tools http://localhost:3001/sse
 
 # Example: Use the everything sample server
 # docker run -p 3001:3001 --rm -it tzolov/mcp-everything-server:v1
@@ -340,7 +340,7 @@ mcp web https://ne.tools
 The web interface includes:
 
 - A sidebar listing all available tools, resources, and prompts
-- Form-based and JSON-based parameter editing 
+- Form-based and JSON-based parameter editing
 - Formatted and raw JSON response views
 - Interactive parameter forms automatically generated from tool schemas
 - Support for complex parameter types (arrays, objects, nested structures)
@@ -626,7 +626,7 @@ mcp proxy tool count_lines "Counts lines in a file" "file:string" -e "wc -l < \"
 The guard mode allows you to restrict access to specific tools, prompts, and resources based on pattern matching. This is useful for security purposes when:
 
 - Restricting potentially dangerous operations (file writes, deletions, etc.)
-- Limiting the capabilities of AI assistants or applications 
+- Limiting the capabilities of AI assistants or applications
 - Providing read-only access to sensitive systems
 - Creating sandboxed environments for testing or demonstrations
 

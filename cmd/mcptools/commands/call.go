@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -104,11 +106,36 @@ func CallCmd() *cobra.Command {
 
 			switch entityType {
 			case EntityTypeTool:
-				resp, execErr = mcpClient.CallTool(entityName, params)
+				var toolResponse *mcp.CallToolResult
+				request := mcp.CallToolRequest{}
+				request.Params.Name = entityName
+				request.Params.Arguments = params
+				toolResponse, execErr = mcpClient.CallTool(context.Background(), request)
+				if execErr == nil && toolResponse != nil {
+					resp = ConvertJSONToMap(toolResponse)
+				} else {
+					resp = map[string]any{}
+				}
 			case EntityTypeRes:
-				resp, execErr = mcpClient.ReadResource(entityName)
+				var resourceResponse *mcp.ReadResourceResult
+				request := mcp.ReadResourceRequest{}
+				request.Params.URI = entityName
+				resourceResponse, execErr = mcpClient.ReadResource(context.Background(), request)
+				if execErr == nil && resourceResponse != nil {
+					resp = ConvertJSONToMap(resourceResponse)
+				} else {
+					resp = map[string]any{}
+				}
 			case EntityTypePrompt:
-				resp, execErr = mcpClient.GetPrompt(entityName)
+				var promptResponse *mcp.GetPromptResult
+				request := mcp.GetPromptRequest{}
+				request.Params.Name = entityName
+				promptResponse, execErr = mcpClient.GetPrompt(context.Background(), request)
+				if execErr == nil && promptResponse != nil {
+					resp = ConvertJSONToMap(promptResponse)
+				} else {
+					resp = map[string]any{}
+				}
 			default:
 				fmt.Fprintf(os.Stderr, "Error: unsupported entity type: %s\n", entityType)
 				os.Exit(1)

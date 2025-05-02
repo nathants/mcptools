@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +23,6 @@ func ToolsCmd() *cobra.Command {
 			}
 
 			parsedArgs := ProcessFlags(args)
-
 			mcpClient, err := CreateClientFunc(parsedArgs)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -29,8 +30,15 @@ func ToolsCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			resp, listErr := mcpClient.ListTools()
-			if formatErr := FormatAndPrintResponse(thisCmd, resp, listErr); formatErr != nil {
+			resp, listErr := mcpClient.ListTools(context.Background(), mcp.ListToolsRequest{})
+
+			var tools []any
+			if listErr == nil && resp != nil {
+				tools = ConvertJSONToSlice(resp.Tools)
+			}
+
+			toolsMap := map[string]any{"tools": tools}
+			if formatErr := FormatAndPrintResponse(thisCmd, toolsMap, listErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

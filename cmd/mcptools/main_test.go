@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/f/mcptools/cmd/mcptools/commands"
-	"github.com/f/mcptools/pkg/transport"
 )
 
 const entityTypeValue = "tool"
@@ -97,7 +96,7 @@ func (t *MockTransport) Execute(method string, params interface{}) (map[string]i
 }
 
 type Shell struct {
-	Transport transport.Transport
+	Transport *MockTransport
 	Reader    io.Reader
 	Writer    io.Writer
 	Format    string

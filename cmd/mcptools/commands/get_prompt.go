@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -81,8 +83,18 @@ func GetPromptCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			resp, execErr := mcpClient.GetPrompt(promptName)
-			if formatErr := FormatAndPrintResponse(thisCmd, resp, execErr); formatErr != nil {
+			request := mcp.GetPromptRequest{}
+			request.Params.Name = promptName
+			resp, execErr := mcpClient.GetPrompt(context.Background(), request)
+
+			var responseMap map[string]any
+			if execErr == nil && resp != nil {
+				responseMap = ConvertJSONToMap(resp)
+			} else {
+				responseMap = map[string]any{}
+			}
+
+			if formatErr := FormatAndPrintResponse(thisCmd, responseMap, execErr); formatErr != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", formatErr)
 				os.Exit(1)
 			}

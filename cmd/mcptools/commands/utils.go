@@ -1,12 +1,18 @@
 package commands
 
 import (
+	"bufio"
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/f/mcptools/pkg/alias"
-	"github.com/f/mcptools/pkg/client"
 	"github.com/f/mcptools/pkg/jsonutils"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/spf13/cobra"
 )
 
@@ -17,36 +23,68 @@ var (
 
 // IsHTTP returns true if the string is a valid HTTP URL.
 func IsHTTP(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "localhost:")
 }
 
 // CreateClientFunc is the function used to create MCP clients.
 // This can be replaced in tests to use a mock transport.
-var CreateClientFunc = func(args []string, opts ...client.Option) (*client.Client, error) {
+var CreateClientFunc = func(args []string, _ ...client.ClientOption) (*client.Client, error) {
 	if len(args) == 0 {
 		return nil, ErrCommandRequired
 	}
 
-	opts = append(opts, client.SetShowServerLogs(ShowServerLogs))
+	// opts = append(opts, client.SetShowServerLogs(ShowServerLogs))
 
 	// Check if the first argument is an alias
 	if len(args) == 1 {
 		server, found := alias.GetServerCommand(args[0])
 		if found {
-			if IsHTTP(server) {
-				return client.NewHTTP(server), nil
-			}
-			cmdParts := client.ParseCommandString(server)
-			c := client.NewStdio(cmdParts, opts...)
-			return c, nil
+			args = ParseCommandString(server)
 		}
 	}
 
+	var c *client.Client
+	var err error
+
 	if len(args) == 1 && IsHTTP(args[0]) {
-		return client.NewHTTP(args[0]), nil
+		c, err = client.NewSSEMCPClient(args[0])
+		if err != nil {
+			return nil, err
+		}
+		err = c.Start(context.Background())
+	} else {
+		c, err = client.NewStdioMCPClient(args[0], nil, args[1:]...)
 	}
 
-	c := client.NewStdio(args, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	stdErr, ok := client.GetStderr(c)
+	if ok && ShowServerLogs {
+		go func() {
+			scanner := bufio.NewScanner(stdErr)
+			for scanner.Scan() {
+				fmt.Printf("[>] %s\n", scanner.Text())
+			}
+		}()
+	}
+
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := c.Initialize(context.Background(), mcp.InitializeRequest{})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			return nil, fmt.Errorf("init error: %w", err)
+		}
+	case <-time.After(10 * time.Second):
+		return nil, fmt.Errorf("initialization timed out")
+	}
 
 	return c, nil
 }
@@ -80,7 +118,7 @@ func ProcessFlags(args []string) []string {
 
 // FormatAndPrintResponse formats and prints an MCP response in the format specified by
 // FormatOption.
-func FormatAndPrintResponse(cmd *cobra.Command, resp map[string]any, err error) error {
+func FormatAndPrintResponse(cmd *cobra.Command, resp any, err error) error {
 	if err != nil {
 		return fmt.Errorf("error: %w", err)
 	}
@@ -99,4 +137,37 @@ func IsValidFormat(format string) bool {
 	return format == "json" || format == "j" ||
 		format == "pretty" || format == "p" ||
 		format == "table" || format == "t"
+}
+
+// ParseCommandString splits a command string into separate arguments,
+// respecting spaces as argument separators.
+// Note: This is a simple implementation that doesn't handle quotes or escapes.
+func ParseCommandString(cmdStr string) []string {
+	if cmdStr == "" {
+		return nil
+	}
+
+	return strings.Fields(cmdStr)
+}
+
+// ConvertJSONToSlice converts a JSON serialized object to a slice of any type.
+func ConvertJSONToSlice(jsonData any) []any {
+	if jsonData == nil {
+		return nil
+	}
+	var toolsSlice []any
+	data, _ := json.Marshal(jsonData)
+	_ = json.Unmarshal(data, &toolsSlice)
+	return toolsSlice
+}
+
+// ConvertJSONToMap converts a JSON serialized object to a map of strings to any type.
+func ConvertJSONToMap(jsonData any) map[string]any {
+	if jsonData == nil {
+		return nil
+	}
+	var promptMap map[string]any
+	data, _ := json.Marshal(jsonData)
+	_ = json.Unmarshal(data, &promptMap)
+	return promptMap
 }
