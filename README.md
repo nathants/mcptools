@@ -64,7 +64,7 @@ MCP Tools provides a versatile CLI for working with Model Context Protocol (MCP)
 
 ## Installation
 
-### Using Homebrew
+### Using Homebrew (for macOS)
 
 ```bash
 brew tap f/mcptools
@@ -73,13 +73,17 @@ brew install mcp
 
 > ❕ The binary is installed as `mcp` but can also be accessed as `mcpt` to avoid conflicts with other tools that might use the `mcp` command name.
 
-### From Source
+### From Source (for Windows and GNU/Linux)
 
 ```bash
 go install github.com/f/mcptools/cmd/mcptools@latest
 ```
 
-The binary will be installed as `mcptools` but can be aliased to `mcpt` for convenience.
+> ❕ The binary will be installed as `mcptools` when but can be aliased to `mcpt` for convenience.
+> 
+> <img width="500" alt="Screenshot 2025-05-05 at 22 21 29" src="https://github.com/user-attachments/assets/eaba88c1-8833-4525-bb19-9ab0ec2ff27e" />
+> 
+> <sub>Windows 11 Running Example</sub>
 
 ## Getting Started
 
