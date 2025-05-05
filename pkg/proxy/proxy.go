@@ -43,7 +43,11 @@ func NewProxyServer() (*Server, error) {
 	// Create log directory
 	homeDir := os.Getenv("HOME")
 	if homeDir == "" {
-		return nil, fmt.Errorf("HOME environment variable not set")
+		// On Windows, try USERPROFILE if HOME is not set
+		homeDir = os.Getenv("USERPROFILE")
+		if homeDir == "" {
+			return nil, fmt.Errorf("HOME environment variable not set and USERPROFILE not found")
+		}
 	}
 
 	logDir := filepath.Join(homeDir, ".mcpt", "logs")

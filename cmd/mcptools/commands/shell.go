@@ -286,7 +286,7 @@ func parseJSONBestEffort(jsonString string, params *map[string]any) error {
 }
 
 func setUpHistory(line *liner.State) func() {
-	historyFile := filepath.Join(os.Getenv("HOME"), ".mcp_history")
+	historyFile := filepath.Join(getHomeDirectory(), ".mcp_history")
 	if f, err := os.Open(filepath.Clean(historyFile)); err == nil {
 		_, _ = line.ReadHistory(f)
 		_ = f.Close()

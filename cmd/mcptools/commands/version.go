@@ -10,8 +10,18 @@ import (
 // Version information placeholder.
 var Version = "dev"
 
+// getHomeDirectory returns the user's home directory
+// Tries HOME first, then falls back to USERPROFILE for Windows
+func getHomeDirectory() string {
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		homeDir = os.Getenv("USERPROFILE")
+	}
+	return homeDir
+}
+
 // TemplatesPath information placeholder.
-var TemplatesPath = os.Getenv("HOME") + "/.mcpt/templates"
+var TemplatesPath = getHomeDirectory() + "/.mcpt/templates"
 
 // VersionCmd creates the version command.
 func VersionCmd() *cobra.Command {

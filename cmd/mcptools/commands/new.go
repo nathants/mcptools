@@ -267,7 +267,7 @@ func findTemplatesDir(sdk string) string {
 		filepath.Join("templates", sdk),
 
 		// User home directory
-		filepath.Join(os.Getenv("HOME"), ".mcpt", "templates", sdk),
+		filepath.Join(getHomeDirectory(), ".mcpt", "templates", sdk),
 
 		// TemplatesPath from env
 		filepath.Join(TemplatesPath, sdk),
