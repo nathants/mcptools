@@ -501,6 +501,24 @@ func (s *Server) handleToolCall(params map[string]interface{}) (map[string]inter
 	s.log(fmt.Sprintf("Script output: %s", output))
 
 	// Return the output in the correct format for the MCP protocol
+	// Check if the output is a base64-encoded PNG image
+	// https://modelcontextprotocol.io/specification/2025-06-18/server/prompts#image-content
+	if strings.HasPrefix(output, "data:image/png;base64,") {
+		base64Data := strings.TrimPrefix(output, "data:image/png;base64,")
+		return map[string]interface{}{
+			"content": []map[string]interface{}{
+				{
+					"type": "text",
+					"text": "generated PNG image",
+				},
+				{
+					"type":     "image",
+					"data":     base64Data,
+					"mimeType": "image/png",
+				},
+			},
+		}, nil
+	}
 	return map[string]interface{}{
 		"content": []map[string]interface{}{
 			{
