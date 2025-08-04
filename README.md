@@ -148,10 +148,10 @@ mcp tools npx -y @modelcontextprotocol/server-filesystem ~
 
 #### HTTP SSE Transport
 
-Uses HTTP and Server-Sent Events (SSE) to communicate with an MCP server via JSON-RPC 2.0. This is useful for connecting to remote servers that implement the legacy MCP protocol.
+Uses HTTP and Server-Sent Events (SSE) to communicate with an MCP server via JSON-RPC 2.0. This is useful for connecting to remote servers that implement the legacy MCP protocol. Transport is automatically detected when the URL ends with `/sse`.
 
 ```bash
-mcp tools --transport=sse http://localhost:3001/sse
+mcp tools http://localhost:3001/sse
 
 # Example: Use the everything sample server
 # docker run -p 3001:3001 --rm -it tzolov/mcp-everything-server:v1
@@ -161,18 +161,18 @@ _Note:_ HTTP SSE currently supports only MCP protocol version 2024-11-05.
 
 #### Streamable HTTP Transport (Recommended)
 
-Uses streamable HTTP to communicate with an MCP server via JSON-RPC 2.0. This is the modern, recommended approach for connecting to remote servers that implement the MCP protocol. It supports both streaming responses and simple request/response patterns.
+Uses streamable HTTP to communicate with an MCP server via JSON-RPC 2.0. This is the modern, recommended approach for connecting to remote servers that implement the MCP protocol. It supports both streaming responses and simple request/response patterns. This is the default transport for HTTP/HTTPS URLs.
 
 ```bash
-# Default transport for HTTP URLs (explicit flag not needed)
+# Default transport for HTTP URLs
 mcp tools http://localhost:3000
 
-# Explicitly specify streamable HTTP transport
-mcp tools --transport=http http://localhost:3000
+# Streamable HTTP transport (auto-detected from URL)
+mcp tools http://localhost:3000
 
 # Examples with remote servers
 mcp tools https://api.example.com/mcp
-mcp tools --transport=http https://ne.tools
+mcp tools https://ne.tools
 ```
 
 _Benefits of Streamable HTTP:_
@@ -822,11 +822,11 @@ Connect to remote streamable HTTP servers:
 # Connect to a remote MCP server
 mcp tools https://api.example.com/mcp
 
-# Use SSE transport for legacy servers
-mcp tools --transport=sse http://legacy-server.com/sse
+# Use SSE transport for legacy servers (auto-detected from /sse path)
+mcp tools http://legacy-server.com/sse
 
 # Example with authentication headers (when supported)
-mcp tools --transport=http https://authenticated-mcp-server.com
+mcp tools https://authenticated-mcp-server.com
 ```
 
 ### Script Integration
