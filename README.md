@@ -395,12 +395,11 @@ mcp new tool:calculate --sdk=ts
 # Create a project with a specific transport type
 mcp new tool:calculate --transport=stdio
 mcp new tool:calculate --transport=sse
-mcp new tool:calculate --transport=http
 ```
 
 The scaffolding creates a complete project structure with:
 
-- Server setup with chosen transport (stdio, SSE, or streamable HTTP)
+- Server setup with chosen transport (stdio or SSE)
 - TypeScript configuration with modern ES modules
 - Component implementations with proper MCP interfaces
 - Automatic wiring of imports and initialization
@@ -792,28 +791,28 @@ mcp guard --deny tools:write_*,delete_*,create_*,move_* npx -y @modelcontextprot
 Create and run a local streamable HTTP server:
 
 ```bash
-# Create a new MCP server with streamable HTTP transport
-mkdir my-http-server && cd my-http-server
-mcp new tool:example_tool --transport=http
+# Create a new MCP server with SSE transport (streamable HTTP not available in scaffolding)
+mkdir my-sse-server && cd my-sse-server
+mcp new tool:example_tool --transport=sse
 
 # Install dependencies and build
 npm install && npm run build
 
-# Start the server (will run on http://localhost:3000)
+# Start the server (will run SSE transport)
 npm start
 ```
 
 In a separate terminal, connect to your local server:
 
 ```bash
-# Connect to local streamable HTTP server
-mcp tools http://localhost:3000
+# Connect to local SSE server (adjust URL based on your server's SSE endpoint)
+mcp tools http://localhost:3000/sse
 
 # Call a tool on the local server
-mcp call example_tool --params '{"input": "test"}' http://localhost:3000
+mcp call example_tool --params '{"input": "test"}' http://localhost:3000/sse
 
 # Use with different output formats
-mcp tools --format pretty http://localhost:3000
+mcp tools --format pretty http://localhost:3000/sse
 ```
 
 Connect to remote streamable HTTP servers:
