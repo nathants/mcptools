@@ -9,14 +9,16 @@ import (
 
 // flags.
 const (
-	FlagFormat      = "--format"
-	FlagFormatShort = "-f"
-	FlagParams      = "--params"
-	FlagParamsShort = "-p"
-	FlagHelp        = "--help"
-	FlagHelpShort   = "-h"
-	FlagServerLogs  = "--server-logs"
-	FlagTransport   = "--transport"
+	FlagFormat         = "--format"
+	FlagFormatShort    = "-f"
+	FlagParams         = "--params"
+	FlagParamsShort    = "-p"
+	FlagHelp           = "--help"
+	FlagHelpShort      = "-h"
+	FlagServerLogs     = "--server-logs"
+	FlagTransport      = "--transport"
+	FlagAuthUser       = "--auth-user"
+	FlagAuthHeader     = "--auth-header"
 )
 
 // entity types.
@@ -38,6 +40,10 @@ var (
 	// TransportOption is the transport option for HTTP connections, valid values are "sse" and "http".
 	// Default is "http" (streamable HTTP).
 	TransportOption = "http"
+	// AuthUser contains username:password for basic authentication.
+	AuthUser string
+	// AuthHeader is a custom Authorization header.
+	AuthHeader string
 )
 
 // RootCmd creates the root command.
@@ -53,6 +59,8 @@ It allows you to discover and call tools, list resources, and interact with MCP-
 	cmd.PersistentFlags().
 		StringVarP(&ParamsString, "params", "p", "{}", "JSON string of parameters to pass to the tool (for call command)")
 	cmd.PersistentFlags().StringVar(&TransportOption, "transport", "http", "HTTP transport type (http, sse)")
+	cmd.PersistentFlags().StringVar(&AuthUser, "auth-user", "", "Basic authentication in username:password format")
+	cmd.PersistentFlags().StringVar(&AuthHeader, "auth-header", "", "Custom Authorization header (e.g., 'Bearer token' or 'Basic base64credentials')")
 
 	return cmd
 }
