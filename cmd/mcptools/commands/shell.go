@@ -31,16 +31,24 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 			cmdArgs := args
 			parsedArgs := []string{}
 
-			for i := 0; i < len(cmdArgs); i++ {
+			i := 0
+			for i < len(cmdArgs) {
 				switch {
 				case (cmdArgs[i] == FlagFormat || cmdArgs[i] == FlagFormatShort) && i+1 < len(cmdArgs):
 					FormatOption = cmdArgs[i+1]
-					i++
+					i += 2
 				case cmdArgs[i] == FlagServerLogs:
 					ShowServerLogs = true
 					i++
+				case cmdArgs[i] == FlagAuthUser && i+1 < len(cmdArgs):
+					AuthUser = cmdArgs[i+1]
+					i += 2
+				case cmdArgs[i] == FlagAuthHeader && i+1 < len(cmdArgs):
+					AuthHeader = cmdArgs[i+1]
+					i += 2
 				default:
 					parsedArgs = append(parsedArgs, cmdArgs[i])
+					i++
 				}
 			}
 

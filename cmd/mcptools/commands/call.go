@@ -48,6 +48,15 @@ func CallCmd() *cobra.Command {
 				case (cmdArgs[i] == FlagParams || cmdArgs[i] == FlagParamsShort) && i+1 < len(cmdArgs):
 					ParamsString = cmdArgs[i+1]
 					i += 2
+				case (cmdArgs[i] == FlagTransport) && i+1 < len(cmdArgs):
+					TransportOption = cmdArgs[i+1]
+					i += 2
+				case (cmdArgs[i] == FlagAuthUser) && i+1 < len(cmdArgs):
+					AuthUser = cmdArgs[i+1]
+					i += 2
+				case (cmdArgs[i] == FlagAuthHeader) && i+1 < len(cmdArgs):
+					AuthHeader = cmdArgs[i+1]
+					i += 2
 				case !entityExtracted:
 					entityName = cmdArgs[i]
 					entityExtracted = true

@@ -3,14 +3,17 @@ package commands
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/f/mcptools/pkg/alias"
 	"github.com/f/mcptools/pkg/jsonutils"
 	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/spf13/cobra"
@@ -26,14 +29,69 @@ func IsHTTP(str string) bool {
 	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "localhost:")
 }
 
+// buildAuthHeader builds an Authorization header from the available auth options.
+// It returns the header value and a cleaned URL (with embedded credentials removed).
+func buildAuthHeader(originalURL string) (string, string, error) {
+	cleanURL := originalURL
+	
+	// First, check if we have explicit auth-user flag with username:password format
+	if AuthUser != "" {
+		// Parse username:password format
+		if !strings.Contains(AuthUser, ":") {
+			return "", originalURL, fmt.Errorf("auth-user must be in username:password format (missing colon)")
+		}
+		
+		parts := strings.SplitN(AuthUser, ":", 2)
+		username := parts[0]
+		password := parts[1]
+		
+		// Allow empty username or password, but not both
+		if username == "" && password == "" {
+			// Both empty, treat as no auth
+		} else {
+			// Create basic auth header
+			auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+			header := "Basic " + auth
+			return header, cleanURL, nil
+		}
+	}
+	
+	// Check for custom auth header
+	if AuthHeader != "" {
+		return AuthHeader, cleanURL, nil
+	}
+	
+	// Extract credentials from URL if embedded
+	parsedURL, err := url.Parse(originalURL)
+	if err != nil {
+		return "", originalURL, err
+	}
+	
+	if parsedURL.User != nil {
+		username := parsedURL.User.Username()
+		password, _ := parsedURL.User.Password()
+		
+		if username != "" {
+			// Create basic auth header
+			auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+			
+			// Clean the URL by removing user info
+			parsedURL.User = nil
+			cleanURL = parsedURL.String()
+			
+			return "Basic " + auth, cleanURL, nil
+		}
+	}
+	
+	return "", cleanURL, nil
+}
+
 // CreateClientFunc is the function used to create MCP clients.
 // This can be replaced in tests to use a mock transport.
 var CreateClientFunc = func(args []string, _ ...client.ClientOption) (*client.Client, error) {
 	if len(args) == 0 {
 		return nil, ErrCommandRequired
 	}
-
-	// opts = append(opts, client.SetShowServerLogs(ShowServerLogs))
 
 	// Check if the first argument is an alias
 	if len(args) == 1 {
@@ -51,13 +109,35 @@ var CreateClientFunc = func(args []string, _ ...client.ClientOption) (*client.Cl
 		if TransportOption != "http" && TransportOption != "sse" {
 			return nil, fmt.Errorf("invalid transport option: %s (supported: http, sse)", TransportOption)
 		}
-		
-		if TransportOption == "sse" {
-			c, err = client.NewSSEMCPClient(args[0])
-		} else {
-			// Default to streamable HTTP
-			c, err = client.NewStreamableHttpClient(args[0])
+
+		// Build authentication header
+		authHeader, cleanURL, authErr := buildAuthHeader(args[0])
+		if authErr != nil {
+			return nil, fmt.Errorf("failed to parse authentication: %w", authErr)
 		}
+
+		// Create headers map if authentication is provided
+		headers := make(map[string]string)
+		if authHeader != "" {
+			headers["Authorization"] = authHeader
+		}
+
+		if TransportOption == "sse" {
+			// For SSE transport, use transport.ClientOption
+			if len(headers) > 0 {
+				c, err = client.NewSSEMCPClient(cleanURL, transport.WithHeaders(headers))
+			} else {
+				c, err = client.NewSSEMCPClient(cleanURL)
+			}
+		} else {
+			// For StreamableHTTP transport, use transport.StreamableHTTPCOption
+			if len(headers) > 0 {
+				c, err = client.NewStreamableHttpClient(cleanURL, transport.WithHTTPHeaders(headers))
+			} else {
+				c, err = client.NewStreamableHttpClient(cleanURL)
+			}
+		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +163,14 @@ var CreateClientFunc = func(args []string, _ ...client.ClientOption) (*client.Cl
 	done := make(chan error, 1)
 
 	go func() {
-		_, err := c.Initialize(context.Background(), mcp.InitializeRequest{})
+		initRequest := mcp.InitializeRequest{}
+		initRequest.Params.ProtocolVersion = "2024-11-05"
+		initRequest.Params.Capabilities = mcp.ClientCapabilities{}
+		initRequest.Params.ClientInfo = mcp.Implementation{
+			Name:    "mcptools",
+			Version: "1.0.0",
+		}
+		_, err := c.Initialize(context.Background(), initRequest)
 		done <- err
 	}()
 
@@ -121,6 +208,12 @@ func ProcessFlags(args []string) []string {
 		case args[i] == FlagServerLogs:
 			ShowServerLogs = true
 			i++
+		case args[i] == FlagAuthUser && i+1 < len(args):
+			AuthUser = args[i+1]
+			i += 2
+		case args[i] == FlagAuthHeader && i+1 < len(args):
+			AuthHeader = args[i+1]
+			i += 2
 		default:
 			parsedArgs = append(parsedArgs, args[i])
 			i++
