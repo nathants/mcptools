@@ -29,7 +29,7 @@ func ToolsCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Example: mcp tools npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
-			defer mcpClient.Close()
+			defer CloseWithTimeout(mcpClient)
 
 			resp, listErr := mcpClient.ListTools(context.Background(), mcp.ListToolsRequest{})
 

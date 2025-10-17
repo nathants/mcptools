@@ -70,7 +70,7 @@ func ReadResourceCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
 			}
-			defer mcpClient.Close()
+			defer CloseWithTimeout(mcpClient)
 
 			request := mcp.ReadResourceRequest{}
 			request.Params.URI = resourceName

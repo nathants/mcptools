@@ -58,12 +58,12 @@ func ShellCmd() *cobra.Command { //nolint:gocyclo
 				os.Exit(1)
 			}
 
-			mcpClient, clientErr := CreateClientFunc(parsedArgs)
-			if clientErr != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
-				os.Exit(1)
-			}
-			defer mcpClient.Close()
+		mcpClient, clientErr := CreateClientFunc(parsedArgs)
+		if clientErr != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
+			os.Exit(1)
+		}
+		defer CloseWithTimeout(mcpClient)
 
 			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > MCP Tools Shell (%s)\n", Version)
 			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Connected to Server: %s\n", strings.Join(parsedArgs, " "))

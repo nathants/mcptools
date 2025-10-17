@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +21,62 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// CloseWithTimeout attempts to close the MCP client with a timeout.
+// It waits up to 1 second for graceful shutdown, then kills any child processes.
+func CloseWithTimeout(c *client.Client) {
+	done := make(chan struct{})
+	go func() {
+		_ = c.Close()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Closed successfully within timeout
+	case <-time.After(1 * time.Second):
+		// Timeout - kill entire process tree to prevent lingering subprocesses
+		killDescendantProcesses()
+	}
+}
+
+// killDescendantProcesses finds and kills all descendant processes of the current process.
+// It recursively finds children, grandchildren, etc. and kills them with SIGKILL.
+func killDescendantProcesses() {
+	pid := os.Getpid()
+	descendants := findDescendants(pid)
+	for _, descendantPid := range descendants {
+		proc, err := os.FindProcess(descendantPid)
+		if err == nil {
+			_ = proc.Kill()
+		}
+	}
+}
+
+// findDescendants recursively finds all descendant PIDs of the given PID.
+func findDescendants(pid int) []int {
+	cmd := exec.Command("pgrep", "-P", strconv.Itoa(pid))
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	var descendants []int
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		childPid, err := strconv.Atoi(line)
+		if err != nil {
+			continue
+		}
+		descendants = append(descendants, childPid)
+		// Recursively find grandchildren
+		descendants = append(descendants, findDescendants(childPid)...)
+	}
+	return descendants
+}
 
 // sentinel errors.
 var (

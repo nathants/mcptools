@@ -22,15 +22,15 @@ func PromptsCmd() *cobra.Command {
 				return
 			}
 
-			parsedArgs := ProcessFlags(args)
+		parsedArgs := ProcessFlags(args)
 
-			mcpClient, err := CreateClientFunc(parsedArgs)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~\n")
-				os.Exit(1)
-			}
-			defer mcpClient.Close()
+		mcpClient, err := CreateClientFunc(parsedArgs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~\n")
+			os.Exit(1)
+		}
+		defer CloseWithTimeout(mcpClient)
 
 			resp, listErr := mcpClient.ListPrompts(context.Background(), mcp.ListPromptsRequest{})
 

@@ -109,7 +109,7 @@ func CallCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
 			}
-			defer mcpClient.Close()
+			defer CloseWithTimeout(mcpClient)
 
 			var resp map[string]any
 			var execErr error
