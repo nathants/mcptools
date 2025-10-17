@@ -30,6 +30,7 @@ func PromptsCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Example: mcp prompts npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
+			defer mcpClient.Close()
 
 			resp, listErr := mcpClient.ListPrompts(context.Background(), mcp.ListPromptsRequest{})
 

@@ -30,6 +30,7 @@ func ResourcesCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Example: mcp resources npx -y @modelcontextprotocol/server-filesystem ~\n")
 				os.Exit(1)
 			}
+			defer mcpClient.Close()
 
 			resp, listErr := mcpClient.ListResources(context.Background(), mcp.ListResourcesRequest{})
 

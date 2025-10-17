@@ -54,6 +54,7 @@ func WebCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
 			}
+			defer mcpClient.Close()
 
 			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Starting MCP Tools Web Interface (%s)\n", Version)
 			fmt.Fprintf(thisCmd.OutOrStdout(), "mcp > Connected to Server: %s\n", strings.Join(parsedArgs, " "))

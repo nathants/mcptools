@@ -82,6 +82,7 @@ func GetPromptCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", clientErr)
 				os.Exit(1)
 			}
+			defer mcpClient.Close()
 
 			request := mcp.GetPromptRequest{}
 			request.Params.Name = promptName
